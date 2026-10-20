@@ -1,7 +1,8 @@
 {
   "name": "ZAMMLER Сеть 1",
   "short_name": "ZAMMLER",
-  "start_url": "/?role=admin",
+  "start_url": "/zammler/?dept=ПП7",
+  "scope": "/zammler/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#00838f",
@@ -9,7 +10,8 @@
     {
       "src": "https://cdn-icons-png.flaticon.com/512/906/906334.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
