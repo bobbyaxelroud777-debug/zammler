@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZAMMLER - Сеть 1</title>
+    <title>ZAMMLER - Set 1</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,19 +17,21 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
 
-    <!-- Хедер -->
+    <!-- Header -->
     <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <div class="bg-teal-600 p-2 rounded-lg text-white">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <div class="flex items-center space-x-3.5">
+                <div class="bg-teal-700 p-2.5 rounded-xl text-white shadow-md flex items-center justify-center">
+                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                    </svg>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight flex items-center space-x-2">
-                        <span>ZAMMLER</span>
-                        <span class="text-xs bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded border border-teal-700">СЕТЬ 1</span>
-                    </h1>
-                    <p class="text-xs text-slate-400" id="clock">Текущее время: --:--</p>
+                    <div class="flex items-center space-x-2.5">
+                        <span class="font-extrabold text-xl tracking-wider text-white">ZAMMLER</span>
+                        <span class="text-xs bg-teal-900/90 text-teal-300 px-2.5 py-0.5 rounded-md font-semibold border border-teal-700/80">SET 1</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="clock">Tekushee vremya: --:--</p>
                 </div>
             </div>
             
@@ -37,57 +39,57 @@
         </div>
     </header>
 
-    <!-- Навигация по вкладкам -->
+    <!-- Nav -->
     <nav class="bg-slate-800/60 border-b border-slate-700/60 sticky top-[73px] z-30 backdrop-blur-md">
         <div class="max-w-6xl mx-auto flex space-x-2 p-2">
-            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">Задачи</button>
-            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Аудит</button>
-            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Продуктивность</button>
+            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">Zadachi</button>
+            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Audit</button>
+            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Produktivnost</button>
         </div>
     </nav>
 
-    <!-- Основной контент -->
+    <!-- Main Content -->
     <main class="max-w-6xl mx-auto w-full p-4 flex-grow">
         
-        <!-- ВКЛАДКА 1: ЗАДАЧИ -->
+        <!-- TAB 1: TASKS -->
         <div id="tab-tasks" class="space-y-4">
             <div id="admin-panel" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg flex justify-between items-center">
-                <h2 class="text-lg font-bold text-teal-400">Панель администратора</h2>
-                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Создать задачу</button>
+                <h2 class="text-lg font-bold text-teal-400">Panel administratora</h2>
+                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Sozdat zadachu</button>
             </div>
             <div class="flex justify-between items-end">
-                <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
-                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Синхронизировано</span>
+                <h2 id="view-title" class="text-xl font-bold text-slate-200">Zadachi</h2>
+                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Oblachnaya sinkhronizatsiya</span>
             </div>
             <div id="tasks-container" class="space-y-3">
-                <div class="text-center py-10 text-slate-500">Загрузка задач...</div>
+                <div class="text-center py-10 text-slate-500">Zagruzka zadach iz oblaka...</div>
             </div>
         </div>
 
-        <!-- ВКЛАДКА 2: АУДИТ -->
+        <!-- TAB 2: AUDIT -->
         <div id="tab-audit" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Аудит склада</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Audit sklada</h2>
                     <div id="audit-controls" class="hidden flex space-x-2">
                         <select id="audit-month" onchange="renderAudit()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                            <option value="2026-10">Октябрь 2026</option>
-                            <option value="2026-11">Ноябрь 2026</option>
-                            <option value="2026-12">Декабрь 2026</option>
+                            <option value="2026-10">Oktyabr 2026</option>
+                            <option value="2026-11">Noyabr 2026</option>
+                            <option value="2026-12">Dekabr 2026</option>
                         </select>
-                        <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Сохранить аудит</button>
+                        <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium"> Sokhranit audit</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-3">Склад / Период</th>
-                                <th class="p-3">Неделя 1</th>
-                                <th class="p-3">Неделя 2</th>
-                                <th class="p-3">Неделя 3</th>
-                                <th class="p-3">Неделя 4</th>
-                                <th class="p-3 text-teal-300">Среднее (Текущее)</th>
+                                <th class="p-3">Sklad / Period</th>
+                                <th class="p-3">Nedelya 1</th>
+                                <th class="p-3">Nedelya 2</th>
+                                <th class="p-3">Nedelya 3</th>
+                                <th class="p-3">Nedelya 4</th>
+                                <th class="p-3 text-teal-300">Srednee</th>
                             </tr>
                         </thead>
                         <tbody id="audit-table-body"></tbody>
@@ -95,29 +97,29 @@
                 </div>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <h3 class="text-md font-bold text-slate-200 mb-3">Динамика аудита за весь период</h3>
+                <h3 class="text-md font-bold text-slate-200 mb-3">Dinamika audita</h3>
                 <div class="h-64"><canvas id="auditChart"></canvas></div>
             </div>
         </div>
 
-        <!-- ВКЛАДКА 3: ПРОДУКТИВНОСТЬ -->
+        <!-- TAB 3: PRODUCTIVITY -->
         <div id="tab-productivity" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Продуктивность</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Produktivnost</h2>
                     <div id="prod-controls" class="hidden flex space-x-2 items-center">
                         <input type="date" id="prod-date" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                        <input type="number" id="prod-val" placeholder="Значение (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                        <button onclick="addProdData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Добавить</button>
+                        <input type="number" id="prod-val" placeholder="Znachenie (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                        <button onclick="addProdData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Dobavit</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-3">Склад</th>
-                                <th class="p-3 text-teal-300">Среднее за месяц (с 1-го числа)</th>
-                                <th class="p-3">Последние дни (История)</th>
+                                <th class="p-3">Sklad</th>
+                                <th class="p-3 text-teal-300">Srednee za mesyats</th>
+                                <th class="p-3">Istoriya</th>
                             </tr>
                         </thead>
                         <tbody id="prod-table-body"></tbody>
@@ -125,67 +127,97 @@
                 </div>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <h3 class="text-md font-bold text-slate-200 mb-3">График продуктивности</h3>
+                <h3 class="text-md font-bold text-slate-200 mb-3">Grafik produktivnosti</h3>
                 <div class="h-64"><canvas id="prodChart"></canvas></div>
             </div>
         </div>
 
     </main>
 
-    <!-- Модальное окно задачи (с поддержкой множественного выбора) -->
+    <!-- Modal -->
     <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-            <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
+            <h3 class="text-lg font-bold text-slate-100 mb-4">Novaya zadacha</h3>
             <form onsubmit="handleCreateTask(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
-                    <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none" placeholder="Например: Проверить отгрузку">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Tekst zadachi</label>
+                    <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none">
                 </div>
-                
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="block text-xs font-medium text-slate-400">Получатели (можно выбрать несколько)</label>
-                        <button type="button" onclick="toggleSelectAll(true)" class="text-xs text-teal-400 hover:underline">Выбрать все</button>
+                        <label class="block text-xs font-medium text-slate-400">Poluchateli</label>
+                        <button type="button" onclick="toggleSelectAll(true)" class="text-xs text-teal-400 hover:underline">Vybrat vse</button>
                     </div>
-                    <div id="dept-checkboxes" class="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg p-2 space-y-1.5 text-sm">
-                        <!-- Заполняется динамически скриптом -->
-                    </div>
+                    <div id="dept-checkboxes" class="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg p-2 space-y-1.5 text-sm"></div>
                 </div>
-
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Время выполнения</label>
-                    <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Vremya</label>
+                    <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none">
                 </div>
-
                 <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Отмена</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Otmena</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Sozdat</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Полноэкранный алерт -->
+    <!-- Alarm Overlay -->
     <div id="alarm-overlay" class="fixed inset-0 bg-red-900/90 hidden z-50 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
-        <div class="bg-slate-950 border-2 border-red-500 p-8 rounded-3xl max-w-lg w-full shadow-2xl animate-bounce">
-            <h2 class="text-2xl font-black text-white mb-2 uppercase">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
+        <div class="bg-slate-950 border-2 border-red-500 p-8 rounded-3xl max-w-lg w-full shadow-2xl">
+            <h2 class="text-2xl font-black text-white mb-2 uppercase">VNIMANIE! VREMYA ZADACHI!</h2>
             <p id="alarm-task-text" class="text-xl text-slate-200 font-bold mb-2">--</p>
             <p id="alarm-task-dept" class="text-sm text-red-400 mb-6">--</p>
-            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">ПОДТВЕРДИТЬ</button>
+            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">PODTVERDIT</button>
         </div>
     </div>
 
     <script>
-        const warehouses = ["ПП7", "ПП10", "ПП11", "ПП12", "ПП13", "ПП15", "ПП16", "ПП21", "ПП24", "ПП30", "ПП32"];
-        let tasks = JSON.parse(localStorage.getItem('zammler_tasks') || '[]');
-        let auditData = JSON.parse(localStorage.getItem('zammler_audit') || '{}');
-        let prodData = JSON.parse(localStorage.getItem('zammler_prod') || '{}');
+        const BIN_ID = '6ad86195ac6210605a44aedd';
+        const MASTER_KEY = '\$2a\$10\$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
+        
+        const warehouses = ["PP7", "PP10", "PP11", "PP12", "PP13", "PP15", "PP16", "PP21", "PP24", "PP30", "PP32"];
+        let tasks = [];
+        let auditData = {};
+        let prodData = {};
         
         let currentRole = 'admin';
         let currentDept = null;
         let activeAlarmTask = null;
         let auditChartInstance = null;
         let prodChartInstance = null;
+
+        async function fetchFromCloud() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { 'X-Master-Key': MASTER_KEY }
+                });
+                if(res.ok) {
+                    const json = await res.json();
+                    if(json.record) {
+                        tasks = json.record.tasks || [];
+                        auditData = json.record.audit || {};
+                        prodData = json.record.prod || {};
+                    }
+                }
+            } catch(e) { console.error('Cloud load error', e); }
+            renderTasks();
+            renderAudit();
+            renderProd();
+        }
+
+        async function saveToCloud() {
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ tasks, audit: auditData, prod: prodData })
+                });
+            } catch(e) { console.error('Cloud save error', e); }
+        }
 
         function initRole() {
             const params = new URLSearchParams(window.location.search);
@@ -204,8 +236,8 @@
                 if (auditControls) auditControls.classList.add('hidden');
                 if (prodControls) prodControls.classList.add('hidden');
 
-                roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
-                document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
+                roleBadge.innerHTML = `<span>Doljnost: <b>${formattedName}</b></span>`;
+                document.getElementById('view-title').innerText = `Zadachi dlya: ${formattedName}`;
             } else {
                 currentRole = 'admin';
                 currentDept = null;
@@ -214,38 +246,36 @@
                 if (auditControls) auditControls.classList.remove('hidden');
                 if (prodControls) prodControls.classList.remove('hidden');
 
-                roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
-                document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
+                roleBadge.innerHTML = `<span>Rejim: <b>Administrator</b></span>`;
+                document.getElementById('view-title').innerText = `Vse zadachi seti (11 skladov)`;
             }
             renderCheckboxes();
-            renderTasks();
-            renderAudit();
-            renderProd();
+            fetchFromCloud();
         }
 
         function renderCheckboxes() {
             const container = document.getElementById('dept-checkboxes');
-            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Склады (Весь склад)</div>`;
+            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Sklady</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
-                    <input type="checkbox" name="task-dept" value="${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
+                    <input type="checkbox" name="task-dept" value="${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
                     <span class="text-slate-200">${wh}</span>
                 </label>
             `).join('');
 
-            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только РО</div>`;
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Tolko RO</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
-                    <input type="checkbox" name="task-dept" value="РО_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
-                    <span class="text-slate-200">РО ${wh}</span>
+                    <input type="checkbox" name="task-dept" value="RO_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
+                    <span class="text-slate-200">RO ${wh}</span>
                 </label>
             `).join('');
 
-            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только СП</div>`;
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Tolko SP</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
-                    <input type="checkbox" name="task-dept" value="СП_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
-                    <span class="text-slate-200">СП ${wh}</span>
+                    <input type="checkbox" name="task-dept" value="SP_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
+                    <span class="text-slate-200">SP ${wh}</span>
                 </label>
             `).join('');
 
@@ -269,7 +299,7 @@
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('clock').innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+            document.getElementById('clock').innerText = `Tekushee vremya: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
             checkAlarms(now);
         }
 
@@ -278,14 +308,13 @@
             let filtered = tasks;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                // Задача отображается если в массиве дельцов есть текущий департмент или базовый склад
                 filtered = tasks.filter(t => {
                     const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
                     return depts.includes(currentDept) || depts.includes(baseWarehouse);
                 });
             }
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl"> Aktivnykh zadach net</div>`;
                 return;
             }
             container.innerHTML = filtered.map(t => {
@@ -300,32 +329,31 @@
                             </div>
                             <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                         </div>
-                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
+                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Vypolneno</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Vypolnit</button>`}</div>
                     </div>
                 `;
             }).join('');
         }
 
-        function markCompleted(id) {
+        async function markCompleted(id) {
             tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
-            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+            await saveToCloud();
             renderTasks();
         }
 
-        function handleCreateTask(e) {
+        async function handleCreateTask(e) {
             e.preventDefault();
             const text = document.getElementById('task-text').value;
-            const time = document.getElementById('task-time').value;
-            
+            const time = document.getElementById('task-time'].value;
             const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
 
             if (selectedDepts.length === 0) {
-                alert('Выберите хотя бы одного получателя задачи!');
+                alert('Vyberite khotya by odnogo poluchatelya!');
                 return;
             }
 
             tasks.unshift({ id: Date.now().toString(), text, dept: selectedDepts, time, completed: false });
-            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+            await saveToCloud();
             renderTasks();
             closeModal();
             e.target.reset();
@@ -343,7 +371,6 @@
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                 list = [baseWarehouse];
             }
-
             const isDisabled = currentRole === 'user' ? 'disabled' : '';
 
             tbody.innerHTML = list.map(wh => {
@@ -364,7 +391,7 @@
             }).join('');
         }
 
-        function saveAuditData() {
+        async function saveAuditData() {
             if(currentRole !== 'admin') return;
             const month = document.getElementById('audit-month').value;
             document.querySelectorAll('#audit-table-body tr').forEach(tr => {
@@ -373,10 +400,10 @@
                 const vals = Array.from(inputs).map(inp => parseFloat(inp.value) || 0);
                 auditData[`${wh}_${month}`] = vals;
             });
-            localStorage.setItem('zammler_audit', JSON.stringify(auditData));
+            await saveToCloud();
             renderAudit();
             renderAuditChart();
-            alert('Аудит сохранен!');
+            alert('Audit sokhranyon v oblako!');
         }
 
         function renderAuditChart() {
@@ -393,9 +420,9 @@
             auditChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+                    labels: ['Nedelya 1', 'Nedelya 2', 'Nedelya 3', 'Nedelya 4'],
                     datasets: [{
-                        label: `Аудит ${targetWh} (${month})`,
+                        label: `Audit ${targetWh} (${month})`,
                         data: data,
                         borderColor: '#0d9488',
                         backgroundColor: 'rgba(13, 148, 136, 0.1)',
@@ -414,7 +441,6 @@
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                 list = [baseWarehouse];
             }
-
             const currentMonthPrefix = new Date().toISOString().slice(0, 7);
 
             tbody.innerHTML = list.map(wh => {
@@ -430,29 +456,27 @@
                     <tr class="border-b border-slate-700/50">
                         <td class="p-3 font-bold text-teal-400">${wh}</td>
                         <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
-                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных'}</td>
+                        <td class="p-3 text-slate-400">${recentEntries || ' Net dannykh'}</td>
                     </tr>
                 `;
             }).join('');
         }
 
-        function addProdData() {
+        async function addProdData() {
             if(currentRole !== 'admin') return;
             const dateStr = document.getElementById('prod-date').value;
             const val = parseFloat(document.getElementById('prod-val').value);
-            let targetWh = prompt("Введите склад для внесения данных (например, ПП7):", "ПП7");
+            let targetWh = prompt("Vvedite sklad:", "PP7");
             
-            if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните дату и значение!'); return; }
-
+            if(!dateStr || isNaN(val) || !targetWh) { alert('Zapolnite vse polya!'); return; }
             targetWh = targetWh.trim().toUpperCase();
             if(!prodData[targetWh]) prodData[targetWh] = {};
             prodData[targetWh][dateStr] = val;
-            prodData[targetWh] = Object.keys(prodData[targetWh]).sort().reduce((obj, key) => { obj[key] = prodData[targetWh][key]; return obj; }, {});
 
-            localStorage.setItem('zammler_prod', JSON.stringify(prodData));
+            await saveToCloud();
             renderProd();
             renderProdChart();
-            alert('Продуктивность добавлена!');
+            alert('Produktivnost dobavlena v oblako!');
         }
 
         function renderProdChart() {
@@ -469,9 +493,9 @@
             prodChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels.length ? labels : ['Нет данных'],
+                    labels: labels.length ? labels : ['Net dannykh'],
                     datasets: [{
-                        label: `Продуктивность ${targetWh} (%)`,
+                        label: `Produktivnost ${targetWh} (%)`,
                         data: data.length ? data : [0],
                         borderColor: '#38bdf8',
                         backgroundColor: 'rgba(56, 189, 248, 0.1)',
@@ -503,22 +527,18 @@
             activeAlarmTask = task;
             document.getElementById('alarm-task-text').innerText = task.text;
             const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
-            document.getElementById('alarm-task-dept').innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
+            document.getElementById('alarm-task-dept').innerText = `Komu: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
             document.getElementById('alarm-overlay').classList.remove('hidden');
         }
 
-        function acknowledgeAlarm() {
-            if (activeAlarmTask) { markCompleted(activeAlarmTask.id); activeAlarmTask = null; }
+        async function acknowledgeAlarm() {
+            if (activeAlarmTask) { await markCompleted(activeAlarmTask.id); activeAlarmTask = null; }
             document.getElementById('alarm-overlay').classList.add('hidden');
         }
 
         document.getElementById('prod-date').valueAsDate = new Date();
         initRole();
         setInterval(updateClock, 1000);
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/zammler/sw.js').catch(e => console.log(e));
-        }
     </script>
 </body>
 </html>
