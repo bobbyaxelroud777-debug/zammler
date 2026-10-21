@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZAMMLER - Сеть 1</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="theme-color" content="#0f172a">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -21,8 +24,9 @@
     <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-3.5">
-                <div class="bg-teal-700 p-2.5 rounded-xl text-white shadow-md flex items-center justify-center">
-                    <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+                <div class="bg-teal-700 p-2 rounded-xl text-white shadow-md flex items-center justify-center overflow-hidden w-10 h-10">
+                    <img src="icon.png" alt="ZAMMLER" class="w-full h-full object-cover rounded-lg" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <svg class="w-7 h-7 hidden" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                     </svg>
                 </div>
@@ -168,7 +172,7 @@
             <h2 class="text-2xl font-black text-white mb-2 uppercase">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
             <p id="alarm-task-text" class="text-xl text-slate-200 font-bold mb-2">--</p>
             <p id="alarm-task-dept" class="text-sm text-red-400 mb-6">--</p>
-            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">ПОДТВЕРДИТЬ</button>
+            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg hover:bg-slate-100 transition-colors">ПОДТВЕРДИТЬ</button>
         </div>
     </div>
 
@@ -186,6 +190,51 @@
         let activeAlarmTask = null;
         let auditChartInstance = null;
         let prodChartInstance = null;
+
+        // Audio Context & Code Red Alarm logic
+        let audioCtx = null;
+        let alarmInterval = null;
+
+        document.addEventListener('touchstart', initAudioContext, { once: true });
+        document.addEventListener('click', initAudioContext, { once: true });
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playCodeRedAlarm() {
+            try {
+                initAudioContext();
+                if (!audioCtx) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sawtooth';
+
+                const now = audioCtx.currentTime;
+                osc.frequency.setValueAtTime(960, now);
+                osc.frequency.exponentialRampToValueAtTime(480, now + 0.4);
+                osc.frequency.setValueAtTime(960, now + 0.5);
+                osc.frequency.exponentialRampToValueAtTime(480, now + 0.9);
+
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 1.0);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 1.0);
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
 
         async function fetchFromCloud() {
             try {
@@ -310,11 +359,11 @@
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                 filtered = tasks.filter(t => {
                     const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
-                    return depts.includes(currentDept) || depts.includes(baseWarehouse);
+                    return depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL');
                 });
             }
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl"> Активных задач нет</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
                 return;
             }
             container.innerHTML = filtered.map(t => {
@@ -510,14 +559,18 @@
         function checkAlarms(now) {
             if (activeAlarmTask) return;
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            
             tasks.forEach(task => {
                 if (!task.completed && task.time === currentHM) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
-                    if (currentRole === 'admin') {
+                    
+                    if (currentRole === 'user' && currentDept) {
+                        const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                        if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
+                            triggerAlarm(task);
+                        }
+                    } else if (currentRole === 'admin') {
                         triggerAlarm(task);
-                    } else if (currentDept) {
-                        const baseWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                        if (depts.includes(currentDept) || depts.includes(baseWh)) triggerAlarm(task);
                     }
                 }
             });
@@ -529,10 +582,21 @@
             const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
             document.getElementById('alarm-task-dept').innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
             document.getElementById('alarm-overlay').classList.remove('hidden');
+
+            playCodeRedAlarm();
+            if (alarmInterval) clearInterval(alarmInterval);
+            alarmInterval = setInterval(playCodeRedAlarm, 1200);
         }
 
         async function acknowledgeAlarm() {
-            if (activeAlarmTask) { await markCompleted(activeAlarmTask.id); activeAlarmTask = null; }
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+            if (activeAlarmTask) {
+                await markCompleted(activeAlarmTask.id);
+                activeAlarmTask = null;
+            }
             document.getElementById('alarm-overlay').classList.add('hidden');
         }
 
