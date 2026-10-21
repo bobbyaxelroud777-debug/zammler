@@ -6,7 +6,6 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(clients.claim());
 });
 
-// Слушаем системные пуш-сообщения или триггеры
 self.addEventListener('push', (event) => {
     const data = event.data ? event.data.json() : { 
         title: '🚨 ZAMMLER: ВНИМАНИЕ!', 
@@ -17,11 +16,10 @@ self.addEventListener('push', (event) => {
         body: data.body,
         icon: 'icon.png',
         badge: 'icon.png',
-        vibrate: [500, 200, 500, 200, 500],
-        requireInteraction: true,
-        actions: [
-            { action: 'open', title: 'Открыть приложение' }
-        ]
+        vibrate: [500, 200, 500, 200, 500, 200, 500],
+        requireInteraction: true, // Висит на экране, пока не нажмут
+        tag: 'alarm-notification', // Заменяет старые уведомления новым
+        renotify: true
     };
 
     event.waitUntil(
@@ -29,15 +27,20 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// Клик по уведомлению открывает приложение
+// Клик по уведомлению разворачивает приложение поверх всех окон
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            if (clientList.length > 0) {
-                return clientList[0].focus();
+            for (let i = 0; i < clientList.length; i++) {
+                let client = clientList[i];
+                if ('focus' in client) {
+                    return client.focus(); // Разворачивает уже открытую вкладку поверх всего
+                }
             }
-            return clients.openWindow('./index.html');
+            if (clients.openWindow) {
+                return clients.openWindow('./index.html'); // Открывает заново, если была закрыта
+            }
         })
     );
 });
