@@ -548,13 +548,12 @@
                 if (!task.completed && task.time === currentHM) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
                     
+                    // Тревога срабатывает ТОЛЬКО на складах (у пользователей), админ сирену не получает
                     if (currentRole === 'user' && currentDept) {
                         const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                         if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
                             triggerAlarm(task);
                         }
-                    } else if (currentRole === 'admin') {
-                        triggerAlarm(task);
                     }
                 }
             });
