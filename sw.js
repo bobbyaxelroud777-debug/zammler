@@ -6,16 +6,19 @@ self.addEventListener('activate', (event) => {
     event.waitUntil(clients.claim());
 });
 
-// Перехват пуш-сообщения в фоновом режиме
+// Слушаем системные пуш-сообщения или триггеры
 self.addEventListener('push', (event) => {
-    const data = event.data ? event.data.json() : { title: '🚨 ТРЕВОГА ZAMMLER', body: 'Время выполнения задачи!' };
+    const data = event.data ? event.data.json() : { 
+        title: '🚨 ZAMMLER: ВНИМАНИЕ!', 
+        body: 'Наступило время выполнения задачи!' 
+    };
     
     const options = {
         body: data.body,
         icon: 'icon.png',
         badge: 'icon.png',
         vibrate: [500, 200, 500, 200, 500],
-        requireInteraction: true, // Уведомление висит на экране, пока пользователь не нажмет
+        requireInteraction: true,
         actions: [
             { action: 'open', title: 'Открыть приложение' }
         ]
@@ -26,7 +29,7 @@ self.addEventListener('push', (event) => {
     );
 });
 
-// Клик по уведомлению разворачивает приложение
+// Клик по уведомлению открывает приложение
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
