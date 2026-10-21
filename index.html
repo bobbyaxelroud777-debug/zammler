@@ -132,45 +132,32 @@
 
     </main>
 
-    <!-- Модальное окно задачи -->
+    <!-- Модальное окно задачи (с поддержкой множественного выбора) -->
     <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
             <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
             <form onsubmit="handleCreateTask(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
                     <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none" placeholder="Например: Проверить отгрузку">
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Получатель</label>
-                        <select id="task-dept" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
-                            <optgroup label="Склады (Весь склад)">
-                                <option value="ПП7">ПП7</option><option value="ПП10">ПП10</option><option value="ПП11">ПП11</option>
-                                <option value="ПП12">ПП12</option><option value="ПП13">ПП13</option><option value="ПП15">ПП15</option>
-                                <option value="ПП16">ПП16</option><option value="ПП21">ПП21</option><option value="ПП24">ПП24</option>
-                                <option value="ПП30">ПП30</option><option value="ПП32">ПП32</option>
-                            </optgroup>
-                            <optgroup label="Только РО">
-                                <option value="РО_ПП7">РО ПП7</option><option value="РО_ПП10">РО ПП10</option><option value="РО_ПП11">РО ПП11</option>
-                                <option value="РО_ПП12">РО ПП12</option><option value="РО_ПП13">РО ПП13</option><option value="РО_ПП15">РО ПП15</option>
-                                <option value="РО_ПП16">РО ПП16</option><option value="РО_ПП21">РО ПП21</option><option value="РО_ПП24">РО ПП24</option>
-                                <option value="РО_ПП30">РО ПП30</option><option value="РО_ПП32">РО ПП32</option>
-                            </optgroup>
-                            <optgroup label="Только СП">
-                                <option value="СП_ПП7">СП ПП7</option><option value="СП_ПП10">СП ПП10</option><option value="СП_ПП11">СП ПП11</option>
-                                <option value="СП_ПП12">СП ПП12</option><option value="СП_ПП13">СП ПП13</option><option value="СП_ПП15">СП ПП15</option>
-                                <option value="СП_ПП16">СП ПП16</option><option value="СП_ПП21">СП ПП21</option><option value="СП_ПП24">СП ПП24</option>
-                                <option value="СП_ПП30">СП ПП30</option><option value="СП_ПП32">СП ПП32</option>
-                            </optgroup>
-                        </select>
+                
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium text-slate-400">Получатели (можно выбрать несколько)</label>
+                        <button type="button" onclick="toggleSelectAll(true)" class="text-xs text-teal-400 hover:underline">Выбрать все</button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Время</label>
-                        <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
+                    <div id="dept-checkboxes" class="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg p-2 space-y-1.5 text-sm">
+                        <!-- Заполняется динамически скриптом -->
                     </div>
                 </div>
-                <div class="flex justify-end space-x-3 pt-4">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Время выполнения</label>
+                    <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-2">
                     <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Отмена</button>
                     <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
                 </div>
@@ -230,9 +217,43 @@
                 roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
                 document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
             }
+            renderCheckboxes();
             renderTasks();
             renderAudit();
             renderProd();
+        }
+
+        function renderCheckboxes() {
+            const container = document.getElementById('dept-checkboxes');
+            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Склады (Весь склад)</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
+                    <span class="text-slate-200">${wh}</span>
+                </label>
+            `).join('');
+
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только РО</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="РО_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
+                    <span class="text-slate-200">РО ${wh}</span>
+                </label>
+            `).join('');
+
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только СП</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="СП_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600 focus:ring-teal-500">
+                    <span class="text-slate-200">СП ${wh}</span>
+                </label>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function toggleSelectAll(select) {
+            document.querySelectorAll('input[name="task-dept"]').forEach(cb => cb.checked = select);
         }
 
         function switchTab(tab) {
@@ -257,24 +278,32 @@
             let filtered = tasks;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                filtered = tasks.filter(t => t.dept === currentDept || t.dept === baseWarehouse);
+                // Задача отображается если в массиве дельцов есть текущий департмент или базовый склад
+                filtered = tasks.filter(t => {
+                    const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
+                    return depts.includes(currentDept) || depts.includes(baseWarehouse);
+                });
             }
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
                 return;
             }
-            container.innerHTML = filtered.map(t => `
-                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center ${t.completed ? 'opacity-50' : ''}">
-                    <div>
-                        <div class="flex items-center space-x-2 mb-1">
-                            <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
-                            <span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${t.dept.replace('_', ' ')}</span>
+            container.innerHTML = filtered.map(t => {
+                const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
+                const deptBadges = depts.map(d => `<span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${d.replace('_', ' ')}</span>`).join(' ');
+                return `
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center ${t.completed ? 'opacity-50' : ''}">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1 flex-wrap gap-1">
+                                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
+                                ${deptBadges}
+                            </div>
+                            <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                         </div>
-                        <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
+                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
                     </div>
-                    <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         function markCompleted(id) {
@@ -286,13 +315,21 @@
         function handleCreateTask(e) {
             e.preventDefault();
             const text = document.getElementById('task-text').value;
-            const dept = document.getElementById('task-dept').value;
             const time = document.getElementById('task-time').value;
-            tasks.unshift({ id: Date.now().toString(), text, dept, time, completed: false });
+            
+            const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
+
+            if (selectedDepts.length === 0) {
+                alert('Выберите хотя бы одного получателя задачи!');
+                return;
+            }
+
+            tasks.unshift({ id: Date.now().toString(), text, dept: selectedDepts, time, completed: false });
             localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
             renderTasks();
             closeModal();
-            document.getElementById('task-form').reset();
+            e.target.reset();
+            toggleSelectAll(false);
         }
 
         function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
@@ -451,10 +488,12 @@
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             tasks.forEach(task => {
                 if (!task.completed && task.time === currentHM) {
-                    if (currentRole === 'admin') triggerAlarm(task);
-                    else if (currentDept) {
+                    const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+                    if (currentRole === 'admin') {
+                        triggerAlarm(task);
+                    } else if (currentDept) {
                         const baseWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                        if (task.dept === currentDept || task.dept === baseWh) triggerAlarm(task);
+                        if (depts.includes(currentDept) || depts.includes(baseWh)) triggerAlarm(task);
                     }
                 }
             });
@@ -463,7 +502,8 @@
         function triggerAlarm(task) {
             activeAlarmTask = task;
             document.getElementById('alarm-task-text').innerText = task.text;
-            document.getElementById('alarm-task-dept').innerText = `Кому: ${task.dept.replace('_', ' ')}`;
+            const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+            document.getElementById('alarm-task-dept').innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
             document.getElementById('alarm-overlay').classList.remove('hidden');
         }
 
