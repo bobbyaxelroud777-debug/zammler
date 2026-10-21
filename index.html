@@ -194,7 +194,6 @@
         let alarmAudio = new Audio('alarm.mp3');
         alarmAudio.loop = true;
 
-        // Запрос системных разрешений на уведомления на телефоне
         function requestNotificationPermission() {
             if ('Notification' in window && Notification.permission !== 'granted') {
                 Notification.requestPermission();
@@ -241,9 +240,17 @@
             const auditControls = document.getElementById('audit-controls');
             const prodControls = document.getElementById('prod-controls');
 
+            // Если склад передан в ссылке — сохраняем его в память устройства
             if (deptParam && deptParam.trim() !== '') {
+                localStorage.setItem('zammler_dept', deptParam.trim());
+            }
+
+            // Читаем склад из памяти или ссылки
+            const activeDept = deptParam || localStorage.getItem('zammler_dept');
+
+            if (activeDept && activeDept.trim() !== '') {
                 currentRole = 'user';
-                currentDept = decodeURIComponent(deptParam).replace(/\s+/g, '_');
+                currentDept = decodeURIComponent(activeDept).replace(/\s+/g, '_');
                 const formattedName = currentDept.replace('_', ' ');
                 
                 if (adminPanel) adminPanel.classList.add('hidden');
@@ -579,7 +586,6 @@
             alarmAudio.currentTime = 0;
             alarmAudio.play().catch(err => console.log('Audio play error:', err));
 
-            // Запуск системного уведомления Android/PWA
             if ('Notification' in window && Notification.permission === 'granted') {
                 if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.ready.then(registration => {
