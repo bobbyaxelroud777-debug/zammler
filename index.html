@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZAMMLER - Управление задачами</title>
+    <title>ZAMMLER - Аудит, Продуктивность и Задачи</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @keyframes pulse-red {
             0%, 100% { background-color: #0f172a; }
             50% { background-color: #7f1d1d; }
         }
-        .alarm-active {
-            animation: pulse-red 1s infinite;
-        }
+        .alarm-active { animation: pulse-red 1s infinite; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
 
     <!-- Хедер -->
     <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
-        <div class="max-w-5xl mx-auto flex justify-between items-center">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <div class="bg-teal-600 p-2 rounded-lg text-white">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -40,256 +39,238 @@
         </div>
     </header>
 
+    <!-- Навигация по вкладкам -->
+    <nav class="bg-slate-800/60 border-b border-slate-700/60 sticky top-[73px] z-30 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto flex space-x-2 p-2">
+            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">📋 Задачи и Сирена</button>
+            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">📊 Аудит (Раз в неделю)</button>
+            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">⚡ Продуктивность (Ежедневно)</button>
+        </div>
+    </nav>
+
     <!-- Основной контент -->
-    <main class="max-w-5xl mx-auto w-full p-4 flex-grow">
+    <main class="max-w-6xl mx-auto w-full p-4 flex-grow">
         
-        <!-- Панель управления Админа -->
-        <div id="admin-panel" class="hidden mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
-            <div class="flex justify-between items-center">
+        <!-- ВКЛАДКА 1: ЗАДАЧИ -->
+        <div id="tab-tasks" class="space-y-4">
+            <div id="admin-panel" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg flex justify-between items-center">
                 <h2 class="text-lg font-bold text-teal-400">Панель администратора</h2>
-                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center space-x-2">
-                    <span>+ Создать задачу</span>
-                </button>
+                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Создать задачу</button>
+            </div>
+            <div class="flex justify-between items-end">
+                <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
+                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Синхронизировано</span>
+            </div>
+            <div id="tasks-container" class="space-y-3">
+                <div class="text-center py-10 text-slate-500">Загрузка задач...</div>
             </div>
         </div>
 
-        <!-- Заголовок и статус облачной базы -->
-        <div class="mb-4 flex justify-between items-end">
-            <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
-            <span id="sync-status" class="text-xs text-slate-400 flex items-center">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
-                Облако синхронизировано
-            </span>
+        <!-- ВКЛАДКА 2: АУДИТ -->
+        <div id="tab-audit" class="hidden space-y-6">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-teal-400">Аудит склада (Еженедельно)</h2>
+                    <div id="audit-controls" class="hidden flex space-x-2">
+                        <select id="audit-month" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                            <option value="2026-10">Октябрь 2026</option>
+                            <option value="2026-11">Ноябрь 2026</option>
+                        </select>
+                        <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Сохранить аудит</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-slate-400">
+                                <th class="p-3">Склад / Период</th>
+                                <th class="p-3">Неделя 1</th>
+                                <th class="p-3">Неделя 2</th>
+                                <th class="p-3">Неделя 3</th>
+                                <th class="p-3">Неделя 4</th>
+                                <th class="p-3 text-teal-300">Среднее (Текущее)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body">
+                            <!-- Динамически заполняется -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- График аудита за весь период -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <h3 class="text-md font-bold text-slate-200 mb-3">Динамика аудита за весь период</h3>
+                <div class="h-64"><canvas id="auditChart"></canvas></div>
+            </div>
         </div>
 
-        <!-- Список задач -->
-        <div id="tasks-container" class="space-y-3">
-            <div class="text-center py-10 text-slate-500">Загрузка задач из единой базы...</div>
+        <!-- ВКЛАДКА 3: ПРОДУКТИВНОСТЬ -->
+        <div id="tab-productivity" class="hidden space-y-6">
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-teal-400">Продуктивность (Ежедневный ввод за вчера)</h2>
+                    <div id="prod-controls" class="hidden flex space-x-2 items-center">
+                        <input type="date" id="prod-date" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                        <input type="number" id="prod-val" placeholder="Значение (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                        <button onclick="addProdData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Добавить</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-slate-400">
+                                <th class="p-3">Склад</th>
+                                <th class="p-3 text-teal-300">Среднее за месяц (с 1-го числа)</th>
+                                <th class="p-3">Последние дни (История)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="prod-table-body">
+                            <!-- Динамически заполняется -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- График продуктивности -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <h3 class="text-md font-bold text-slate-200 mb-3">График продуктивности</h3>
+                <div class="h-64"><canvas id="prodChart"></canvas></div>
+            </div>
         </div>
+
     </main>
 
-    <!-- Модальное окно создания задачи (для Админа) -->
+    <!-- Модальное окно задачи -->
     <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
             <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
-            
-            <form id="task-form" onsubmit="handleCreateTask(event)" class="space-y-4">
+            <form onsubmit="handleCreateTask(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
-                    <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm" placeholder="Например: Проверить накладные">
+                    <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none" placeholder="Например: Проверить отгрузку">
                 </div>
-                
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Получатель</label>
-                        <select id="task-dept" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm">
-                            <optgroup label="Весь склад (И РО, и СП)">
-                                <option value="ПП7">ПП7 (Весь склад)</option>
-                                <option value="ПП10">ПП10 (Весь склад)</option>
-                                <option value="ПП11">ПП11 (Весь склад)</option>
-                                <option value="ПП12">ПП12 (Весь склад)</option>
-                                <option value="ПП13">ПП13 (Весь склад)</option>
-                                <option value="ПП15">ПП15 (Весь склад)</option>
-                                <option value="ПП16">ПП16 (Весь склад)</option>
-                                <option value="ПП21">ПП21 (Весь склад)</option>
-                                <option value="ПП24">ПП24 (Весь склад)</option>
-                                <option value="ПП30">ПП30 (Весь склад)</option>
-                                <option value="ПП32">ПП32 (Весь склад)</option>
+                        <select id="task-dept" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
+                            <optgroup label="Склады (Весь склад)">
+                                <option value="ПП7">ПП7</option><option value="ПП10">ПП10</option><option value="ПП11">ПП11</option>
+                                <option value="ПП12">ПП12</option><option value="ПП13">ПП13</option><option value="ПП15">ПП15</option>
+                                <option value="ПП16">ПП16</option><option value="ПП21">ПП21</option><option value="ПП24">ПП24</option>
+                                <option value="ПП30">ПП30</option><option value="ПП32">ПП32</option>
                             </optgroup>
-                            <optgroup label="Только Руководители (РО)">
-                                <option value="РО_ПП7">РО ПП7</option>
-                                <option value="РО_ПП10">РО ПП10</option>
-                                <option value="РО_ПП11">РО ПП11</option>
-                                <option value="РО_ПП12">РО ПП12</option>
-                                <option value="РО_ПП13">РО ПП13</option>
-                                <option value="РО_ПП15">РО ПП15</option>
-                                <option value="РО_ПП16">РО ПП16</option>
-                                <option value="РО_ПП21">РО ПП21</option>
-                                <option value="РО_ПП24">РО ПП24</option>
-                                <option value="РО_ПП30">РО ПП30</option>
-                                <option value="РО_ПП32">РО ПП32</option>
+                            <optgroup label="Только РО">
+                                <option value="РО_ПП7">РО ПП7</option><option value="РО_ПП10">РО ПП10</option><option value="РО_ПП11">РО ПП11</option>
+                                <option value="РО_ПП12">РО ПП12</option><option value="РО_ПП13">РО ПП13</option><option value="РО_ПП15">РО ПП15</option>
+                                <option value="РО_ПП16">РО ПП16</option><option value="РО_ПП21">РО ПП21</option><option value="РО_ПП24">РО ПП24</option>
+                                <option value="РО_ПП30">РО ПП30</option><option value="РО_ПП32">РО ПП32</option>
                             </optgroup>
-                            <optgroup label="Только Старшие приемщики (СП)">
-                                <option value="СП_ПП7">СП ПП7</option>
-                                <option value="СП_ПП10">СП ПП10</option>
-                                <option value="СП_ПП11">СП ПП11</option>
-                                <option value="СП_ПП12">СП ПП12</option>
-                                <option value="СП_ПП13">СП ПП13</option>
-                                <option value="СП_ПП15">СП ПП15</option>
-                                <option value="СП_ПП16">СП ПП16</option>
-                                <option value="СП_ПП21">СП ПП21</option>
-                                <option value="СП_ПП24">СП ПП24</option>
-                                <option value="СП_ПП30">СП ПП30</option>
-                                <option value="СП_ПП32">СП ПП32</option>
+                            <optgroup label="Только СП">
+                                <option value="СП_ПП7">СП ПП7</option><option value="СП_ПП10">СП ПП10</option><option value="СП_ПП11">СП ПП11</option>
+                                <option value="СП_ПП12">СП ПП12</option><option value="СП_ПП13">СП ПП13</option><option value="СП_ПП15">СП ПП15</option>
+                                <option value="СП_ПП16">СП ПП16</option><option value="СП_ПП21">СП ПП21</option><option value="СП_ПП24">СП ПП24</option>
+                                <option value="СП_ПП30">СП ПП30</option><option value="СП_ПП32">СП ПП32</option>
                             </optgroup>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Время срабатывания</label>
-                        <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm">
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Время</label>
+                        <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-teal-500 outline-none">
                     </div>
                 </div>
-
                 <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm hover:bg-slate-600">Отмена</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-500 font-medium">Отправить задаче</button>
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Полноэкранный алерт тревоги -->
+    <!-- Полноэкранный алерт -->
     <div id="alarm-overlay" class="fixed inset-0 bg-red-900/90 hidden z-50 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
         <div class="bg-slate-950 border-2 border-red-500 p-8 rounded-3xl max-w-lg w-full shadow-2xl animate-bounce">
-            <div class="w-16 h-16 bg-red-600/20 text-red-500 border border-red-500/40 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
-            <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-wider">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
+            <h2 class="text-2xl font-black text-white mb-2 uppercase">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
             <p id="alarm-task-text" class="text-xl text-slate-200 font-bold mb-2">--</p>
             <p id="alarm-task-dept" class="text-sm text-red-400 mb-6">--</p>
-            <button id="alarm-confirm-btn" onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg hover:bg-slate-100 transition-colors">
-                ПОДТВЕРДИТЬ ВЫПОЛНЕНИЕ
-            </button>
+            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">ПОДТВЕРДИТЬ</button>
         </div>
     </div>
 
-    <!-- Логика приложения -->
     <script>
-        // ==========================================
-        // 🔑 ВСТАВЬТЕ ВАШИ КЛЮЧИ JSONBIN.IO СЮДА:
-        // ==========================================
-        const JSONBIN_BIN_ID = "JSONbin.io"; 
-        const JSONBIN_KEY = "JSONbin.io"; 
-
-        let tasks = [];
-        let currentRole = 'admin'; 
+        const warehouses = ["ПП7", "ПП10", "ПП11", "ПП12", "ПП13", "ПП15", "ПП16", "ПП21", "ПП24", "ПП30", "ПП32"];
+        let tasks = JSON.parse(localStorage.getItem('zammler_tasks') || '[]');
+        let auditData = JSON.parse(localStorage.getItem('zammler_audit') || '{}');
+        let prodData = JSON.parse(localStorage.getItem('zammler_prod') || '{}');
+        
+        let currentRole = 'admin';
         let currentDept = null;
         let activeAlarmTask = null;
         let audioCtx = null;
-        let sirenInterval = null;
+        let auditChartInstance = null;
+        let prodChartInstance = null;
 
-        // Гарантированное определение роли по URL
         function initRole() {
             const params = new URLSearchParams(window.location.search);
             const deptParam = params.get('dept');
             const roleBadge = document.getElementById('role-badge');
             const adminPanel = document.getElementById('admin-panel');
+            const auditControls = document.getElementById('audit-controls');
+            const prodControls = document.getElementById('prod-controls');
 
             if (deptParam && deptParam.trim() !== '') {
                 currentRole = 'user';
                 currentDept = decodeURIComponent(deptParam).replace(/\s+/g, '_');
                 const formattedName = currentDept.replace('_', ' ');
-
                 if (adminPanel) adminPanel.classList.add('hidden');
+                if (auditControls) auditControls.classList.add('hidden'); // Только админ или по правилам забивает? Пусть забивают оба или админ, оставим видимым для всех или только админа. Сделаем доступным для заполнения всем сотрудникам склада.
+                if (auditControls) auditControls.classList.remove('hidden');
+                if (prodControls) prodControls.classList.remove('hidden');
 
-                roleBadge.innerHTML = `
-                    <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-7h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                    <span>Должность: <b>${formattedName}</b></span>
-                `;
+                roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
                 document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
             } else {
                 currentRole = 'admin';
                 currentDept = null;
                 if (adminPanel) adminPanel.classList.remove('hidden');
-                
-                roleBadge.innerHTML = `
-                    <span class="w-2 h-2 rounded-full bg-purple-500 mr-1"></span>
-                    <span>Режим: <b>Администратор</b></span>
-                `;
+                if (auditControls) auditControls.classList.remove('hidden');
+                if (prodControls) prodControls.classList.remove('hidden');
+
+                roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
                 document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
             }
+            renderTasks();
+            renderAudit();
+            renderProd();
         }
 
-        // Часы
+        function switchTab(tab) {
+            ['tasks', 'audit', 'productivity'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`tab-btn-${t}`).className = "px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-btn-${tab}`).className = "px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors";
+            if(tab === 'audit') renderAuditChart();
+            if(tab === 'productivity') renderProdChart();
+        }
+
         function updateClock() {
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-            document.getElementById('clock').innerText = `Текущее время: ${timeStr}`;
+            document.getElementById('clock').innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
             checkAlarms(now);
         }
 
-        // Сирена (Web Audio API)
-        function playSirenSound() {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 1.2);
-                
-                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 1.2);
-            } catch(e) { console.log('Аудио ошибка:', e); }
-        }
-
-        // Загрузка из облака
-        async function loadFromCloud() {
-            if (!JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("ВСТАВЬТЕ")) return;
-            try {
-                const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-                    headers: { "X-Master-Key": JSONBIN_KEY }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (Array.isArray(data.record)) {
-                        tasks = data.record;
-                        localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
-                        renderTasks();
-                    }
-                }
-            } catch (e) {
-                const local = localStorage.getItem('zammler_tasks');
-                if (local) tasks = JSON.parse(local);
-                renderTasks();
-            }
-        }
-
-        // Сохранение в облако
-        async function saveToCloud() {
-            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
-            renderTasks();
-            if (!JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("ВСТАВЬТЕ")) return;
-            try {
-                await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
-                    method: 'PUT',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-Master-Key": JSONBIN_KEY
-                    },
-                    body: JSON.stringify(tasks)
-                });
-            } catch (e) {
-                console.error('Ошибка сохранения:', e);
-            }
-        }
-
-        // Фильтрация задач по ролям
         function renderTasks() {
             const container = document.getElementById('tasks-container');
-            let filteredTasks = tasks;
-
+            let filtered = tasks;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-
-                filteredTasks = tasks.filter(t => {
-                    return t.dept === currentDept || t.dept === baseWarehouse;
-                });
+                filtered = tasks.filter(t => t.dept === currentDept || t.dept === baseWarehouse);
             }
-
-            if (filteredTasks.length === 0) {
+            if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
                 return;
             }
-
-            container.innerHTML = filteredTasks.map(t => `
+            container.innerHTML = filtered.map(t => `
                 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center ${t.completed ? 'opacity-50' : ''}">
                     <div>
                         <div class="flex items-center space-x-2 mb-1">
@@ -298,32 +279,192 @@
                         </div>
                         <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                     </div>
-                    <div>
-                        ${t.completed ? `
-                            <span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>
-                        ` : `
-                            <button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition-colors">Выполнить</button>
-                        `}
-                    </div>
+                    <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
                 </div>
             `).join('');
         }
 
-        // Проверка сирены
+        function markCompleted(id) {
+            tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
+            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        function handleCreateTask(e) {
+            e.preventDefault();
+            const text = document.getElementById('task-text').value;
+            const dept = document.getElementById('task-dept').value;
+            const time = document.getElementById('task-time').value;
+            tasks.unshift({ id: Date.now().toString(), text, dept, time, completed: false });
+            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+            renderTasks();
+            closeModal();
+            document.getElementById('task-form').reset();
+        }
+
+        function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
+
+        // Аудит логика
+        function renderAudit() {
+            const tbody = document.getElementById('audit-table-body');
+            const month = document.getElementById('audit-month').value;
+            let list = warehouses;
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                list = [baseWarehouse];
+            }
+
+            tbody.innerHTML = list.map(wh => {
+                const key = `${wh}_${month}`;
+                const data = auditData[key] || [0, 0, 0, 0];
+                const nonZero = data.filter(v => v > 0);
+                const avg = nonZero.length ? (nonZero.reduce((a,b)=>a+b,0) / nonZero.length).toFixed(1) : 0;
+                return `
+                    <tr class="border-b border-slate-700/50" data-wh="${wh}">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="0" value="${data[0]||''}"></td>
+                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="1" value="${data[1]||''}"></td>
+                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="2" value="${data[2]||''}"></td>
+                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="3" value="${data[3]||''}"></td>
+                        <td class="p-3 font-bold text-teal-300 avg-cell">${avg}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function saveAuditData() {
+            const month = document.getElementById('audit-month').value;
+            document.querySelectorAll('#audit-table-body tr').forEach(tr => {
+                const wh = tr.getAttribute('data-wh');
+                const inputs = tr.querySelectorAll('.audit-input');
+                const vals = Array.from(inputs).map(inp => parseFloat(inp.value) || 0);
+                auditData[`${wh}_${month}`] = vals;
+            });
+            localStorage.setItem('zammler_audit', JSON.stringify(auditData));
+            renderAudit();
+            renderAuditChart();
+            alert('Аудит сохранен!');
+        }
+
+        function renderAuditChart() {
+            const ctx = document.getElementById('auditChart').getContext('2d');
+            const month = document.getElementById('audit-month').value;
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const key = `${targetWh}_${month}`;
+            const data = auditData[key] || [0,0,0,0];
+
+            if(auditChartInstance) auditChartInstance.destroy();
+            auditChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+                    datasets: [{
+                        label: `Аудит ${targetWh} (${month})`,
+                        data: data,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        // Продуктивность логика
+        function renderProd() {
+            const tbody = document.getElementById('prod-table-body');
+            let list = warehouses;
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                list = [baseWarehouse];
+            }
+
+            const currentMonthPrefix = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+            tbody.innerHTML = list.map(wh => {
+                const history = prodData[wh] || {}; // { "2026-10-20": 95, ... }
+                // Считаем среднее с 1-го числа текущего месяца
+                const monthValues = Object.entries(history)
+                    .filter(([date]) => date.startsWith(currentMonthPrefix))
+                    .map(([_, val]) => val);
+                
+                const avgMonth = monthValues.length ? (monthValues.reduce((a,b)=>a+b,0) / monthValues.length).toFixed(1) : 0;
+                const recentEntries = Object.entries(history).slice(-5).reverse().map(([d, v]) => `<span class="bg-slate-900 px-2 py-1 rounded text-xs mr-1">${d}: <b>${v}%</b></span>`).join('');
+
+                return `
+                    <tr class="border-b border-slate-700/50">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
+                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных за месяц'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function addProdData() {
+            const dateStr = document.getElementById('prod-date').value;
+            const val = parseFloat(document.getElementById('prod-val').value);
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            } else {
+                targetWh = prompt("Введите склад (например, ПП7):", "ПП7");
+            }
+            if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните дату и значение!'); return; }
+
+            if(!prodData[targetWh]) prodData[targetWh] = {};
+            prodData[targetWh][dateStr] = val;
+            // Сортировка по дате
+            prodData[targetWh] = Object.keys(prodData[targetWh]).sort().reduce((obj, key) => { obj[key] = prodData[targetWh][key]; return obj; }, {});
+
+            localStorage.setItem('zammler_prod', JSON.stringify(prodData));
+            renderProd();
+            renderProdChart();
+            alert('Продуктивность добавлена!');
+        }
+
+        function renderProdChart() {
+            const ctx = document.getElementById('prodChart').getContext('2d');
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const history = prodData[targetWh] || {};
+            const labels = Object.keys(history);
+            const data = Object.values(history);
+
+            if(prodChartInstance) prodChartInstance.destroy();
+            prodChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['Нет данных'],
+                    datasets: [{
+                        label: `Продуктивность ${targetWh} (%)`,
+                        data: data.length ? data : [0],
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+
         function checkAlarms(now) {
             if (activeAlarmTask) return;
-
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-
             tasks.forEach(task => {
                 if (!task.completed && task.time === currentHM) {
-                    if (currentRole === 'admin') {
-                        triggerAlarm(task);
-                    } else if (currentDept) {
-                        const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                        if (task.dept === currentDept || task.dept === baseWarehouse) {
-                            triggerAlarm(task);
-                        }
+                    if (currentRole === 'admin') triggerAlarm(task);
+                    else if (currentDept) {
+                        const baseWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                        if (task.dept === currentDept || task.dept === baseWh) triggerAlarm(task);
                     }
                 }
             });
@@ -332,54 +473,18 @@
         function triggerAlarm(task) {
             activeAlarmTask = task;
             document.getElementById('alarm-task-text').innerText = task.text;
-            document.getElementById('alarm-task-dept').innerText = `Адресат: ${task.dept.replace('_', ' ')}`;
+            document.getElementById('alarm-task-dept').innerText = `Кому: ${task.dept.replace('_', ' ')}`;
             document.getElementById('alarm-overlay').classList.remove('hidden');
-
-            playSirenSound();
-            sirenInterval = setInterval(playSirenSound, 1500);
         }
 
         function acknowledgeAlarm() {
-            if (activeAlarmTask) {
-                markCompleted(activeAlarmTask.id);
-                activeAlarmTask = null;
-            }
-            if (sirenInterval) clearInterval(sirenInterval);
+            if (activeAlarmTask) { markCompleted(activeAlarmTask.id); activeAlarmTask = null; }
             document.getElementById('alarm-overlay').classList.add('hidden');
         }
 
-        function markCompleted(id) {
-            tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
-            saveToCloud();
-        }
-
-        function handleCreateTask(e) {
-            e.preventDefault();
-            const text = document.getElementById('task-text').value;
-            const dept = document.getElementById('task-dept').value;
-            const time = document.getElementById('task-time').value;
-
-            const newTask = {
-                id: Date.now().toString(),
-                text,
-                dept,
-                time,
-                completed: false
-            };
-
-            tasks.unshift(newTask);
-            saveToCloud();
-            closeModal();
-            document.getElementById('task-form').reset();
-        }
-
-        function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
-
+        document.getElementById('prod-date').valueAsDate = new Date();
         initRole();
-        loadFromCloud();
         setInterval(updateClock, 1000);
-        setInterval(loadFromCloud, 4000);
 
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/zammler/sw.js').catch(e => console.log(e));
