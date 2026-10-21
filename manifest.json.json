@@ -1,14 +1,14 @@
 {
   "name": "ZAMMLER Сеть 1",
   "short_name": "ZAMMLER",
-  "start_url": "/zammler/?dept=ПП7",
+  "start_url": "/zammler/",
   "scope": "/zammler/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#00838f",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/906/906334.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3061/3061341.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
