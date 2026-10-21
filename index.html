@@ -595,5 +595,12 @@
         // АВТООБНОВЛЕНИЕ: подтягиваем данные из облака каждые 5 секунд без перезагрузки страницы
         setInterval(fetchFromCloud, 5000);
     </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Background Worker активен'))
+        .catch(err => console.log('SW error:', err));
+    }
+</script>
 </body>
 </html>
