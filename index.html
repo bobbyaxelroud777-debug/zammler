@@ -194,9 +194,21 @@
         let alarmAudio = new Audio('alarm.mp3');
         alarmAudio.loop = true;
 
+        // Разблокировка звука при первом касании экрана
+        document.addEventListener('click', () => {
+            if (alarmAudio.paused) {
+                alarmAudio.play().then(() => {
+                    alarmAudio.pause();
+                    alarmAudio.currentTime = 0;
+                }).catch(() => {});
+            }
+        }, { once: true });
+
         function requestNotificationPermission() {
-            if ('Notification' in window && Notification.permission !== 'granted') {
-                Notification.requestPermission();
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    console.log('Статус уведомлений:', permission);
+                });
             }
         }
 
@@ -240,12 +252,10 @@
             const auditControls = document.getElementById('audit-controls');
             const prodControls = document.getElementById('prod-controls');
 
-            // Если склад передан в ссылке — сохраняем его в память устройства
             if (deptParam && deptParam.trim() !== '') {
                 localStorage.setItem('zammler_dept', deptParam.trim());
             }
 
-            // Читаем склад из памяти или ссылки
             const activeDept = deptParam || localStorage.getItem('zammler_dept');
 
             if (activeDept && activeDept.trim() !== '') {
@@ -586,6 +596,7 @@
             alarmAudio.currentTime = 0;
             alarmAudio.play().catch(err => console.log('Audio play error:', err));
 
+            // Вызов системного пуш-уведомления
             if ('Notification' in window && Notification.permission === 'granted') {
                 if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.ready.then(registration => {
@@ -596,7 +607,7 @@
                             vibrate: [500, 200, 500, 200, 500],
                             requireInteraction: true
                         });
-                    });
+                    }).catch(err => console.log('Notification error:', err));
                 }
             }
         }
