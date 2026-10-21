@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZAMMLER - Set 1</title>
+    <title>ZAMMLER - Сеть 1</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -29,9 +29,9 @@
                 <div>
                     <div class="flex items-center space-x-2.5">
                         <span class="font-extrabold text-xl tracking-wider text-white">ZAMMLER</span>
-                        <span class="text-xs bg-teal-900/90 text-teal-300 px-2.5 py-0.5 rounded-md font-semibold border border-teal-700/80">SET 1</span>
+                        <span class="text-xs bg-teal-900/90 text-teal-300 px-2.5 py-0.5 rounded-md font-semibold border border-teal-700/80">СЕТЬ 1</span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-0.5" id="clock">Tekushee vremya: --:--</p>
+                    <p class="text-xs text-slate-400 mt-0.5" id="clock">Текущее время: --:--</p>
                 </div>
             </div>
             
@@ -42,9 +42,9 @@
     <!-- Nav -->
     <nav class="bg-slate-800/60 border-b border-slate-700/60 sticky top-[73px] z-30 backdrop-blur-md">
         <div class="max-w-6xl mx-auto flex space-x-2 p-2">
-            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">Zadachi</button>
-            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Audit</button>
-            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Produktivnost</button>
+            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">Задачи</button>
+            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Аудит</button>
+            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Продуктивность</button>
         </div>
     </nav>
 
@@ -54,15 +54,15 @@
         <!-- TAB 1: TASKS -->
         <div id="tab-tasks" class="space-y-4">
             <div id="admin-panel" class="hidden bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg flex justify-between items-center">
-                <h2 class="text-lg font-bold text-teal-400">Panel administratora</h2>
-                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Sozdat zadachu</button>
+                <h2 class="text-lg font-bold text-teal-400">Панель администратора</h2>
+                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Создать задачу</button>
             </div>
             <div class="flex justify-between items-end">
-                <h2 id="view-title" class="text-xl font-bold text-slate-200">Zadachi</h2>
-                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Oblachnaya sinkhronizatsiya</span>
+                <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
+                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Облачная синхронизация</span>
             </div>
             <div id="tasks-container" class="space-y-3">
-                <div class="text-center py-10 text-slate-500">Zagruzka zadach iz oblaka...</div>
+                <div class="text-center py-10 text-slate-500">Загрузка задач из облака...</div>
             </div>
         </div>
 
@@ -70,26 +70,26 @@
         <div id="tab-audit" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Audit sklada</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Аудит склада</h2>
                     <div id="audit-controls" class="hidden flex space-x-2">
                         <select id="audit-month" onchange="renderAudit()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                            <option value="2026-10">Oktyabr 2026</option>
-                            <option value="2026-11">Noyabr 2026</option>
-                            <option value="2026-12">Dekabr 2026</option>
+                            <option value="2026-10">Октябрь 2026</option>
+                            <option value="2026-11">Ноябрь 2026</option>
+                            <option value="2026-12">Декабрь 2026</option>
                         </select>
-                        <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium"> Sokhranit audit</button>
+                        <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Сохранить аудит</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-3">Sklad / Period</th>
-                                <th class="p-3">Nedelya 1</th>
-                                <th class="p-3">Nedelya 2</th>
-                                <th class="p-3">Nedelya 3</th>
-                                <th class="p-3">Nedelya 4</th>
-                                <th class="p-3 text-teal-300">Srednee</th>
+                                <th class="p-3">Склад / Период</th>
+                                <th class="p-3">Неделя 1</th>
+                                <th class="p-3">Неделя 2</th>
+                                <th class="p-3">Неделя 3</th>
+                                <th class="p-3">Неделя 4</th>
+                                <th class="p-3 text-teal-300">Среднее</th>
                             </tr>
                         </thead>
                         <tbody id="audit-table-body"></tbody>
@@ -97,7 +97,7 @@
                 </div>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <h3 class="text-md font-bold text-slate-200 mb-3">Dinamika audita</h3>
+                <h3 class="text-md font-bold text-slate-200 mb-3">Динамика аудита</h3>
                 <div class="h-64"><canvas id="auditChart"></canvas></div>
             </div>
         </div>
@@ -106,20 +106,20 @@
         <div id="tab-productivity" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Produktivnost</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Продуктивность</h2>
                     <div id="prod-controls" class="hidden flex space-x-2 items-center">
                         <input type="date" id="prod-date" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                        <input type="number" id="prod-val" placeholder="Znachenie (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
-                        <button onclick="addProdData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Dobavit</button>
+                        <input type="number" id="prod-val" placeholder="Значение (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                        <button onclick="addProdData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Добавить</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead>
                             <tr class="border-b border-slate-700 text-slate-400">
-                                <th class="p-3">Sklad</th>
-                                <th class="p-3 text-teal-300">Srednee za mesyats</th>
-                                <th class="p-3">Istoriya</th>
+                                <th class="p-3">Склад</th>
+                                <th class="p-3 text-teal-300">Среднее за месяц</th>
+                                <th class="p-3">История</th>
                             </tr>
                         </thead>
                         <tbody id="prod-table-body"></tbody>
@@ -127,7 +127,7 @@
                 </div>
             </div>
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <h3 class="text-md font-bold text-slate-200 mb-3">Grafik produktivnosti</h3>
+                <h3 class="text-md font-bold text-slate-200 mb-3">График продуктивности</h3>
                 <div class="h-64"><canvas id="prodChart"></canvas></div>
             </div>
         </div>
@@ -137,26 +137,26 @@
     <!-- Modal -->
     <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-            <h3 class="text-lg font-bold text-slate-100 mb-4">Novaya zadacha</h3>
+            <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
             <form onsubmit="handleCreateTask(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Tekst zadachi</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
                     <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none">
                 </div>
                 <div>
                     <div class="flex justify-between items-center mb-1">
-                        <label class="block text-xs font-medium text-slate-400">Poluchateli</label>
-                        <button type="button" onclick="toggleSelectAll(true)" class="text-xs text-teal-400 hover:underline">Vybrat vse</button>
+                        <label class="block text-xs font-medium text-slate-400">Получатели</label>
+                        <button type="button" onclick="toggleSelectAll(true)" class="text-xs text-teal-400 hover:underline">Выбрать все</button>
                     </div>
                     <div id="dept-checkboxes" class="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg p-2 space-y-1.5 text-sm"></div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Vremya</label>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Время</label>
                     <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none">
                 </div>
                 <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Otmena</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Sozdat</button>
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
                 </div>
             </form>
         </div>
@@ -165,10 +165,10 @@
     <!-- Alarm Overlay -->
     <div id="alarm-overlay" class="fixed inset-0 bg-red-900/90 hidden z-50 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
         <div class="bg-slate-950 border-2 border-red-500 p-8 rounded-3xl max-w-lg w-full shadow-2xl">
-            <h2 class="text-2xl font-black text-white mb-2 uppercase">VNIMANIE! VREMYA ZADACHI!</h2>
+            <h2 class="text-2xl font-black text-white mb-2 uppercase">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
             <p id="alarm-task-text" class="text-xl text-slate-200 font-bold mb-2">--</p>
             <p id="alarm-task-dept" class="text-sm text-red-400 mb-6">--</p>
-            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">PODTVERDIT</button>
+            <button onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg">ПОДТВЕРДИТЬ</button>
         </div>
     </div>
 
@@ -236,8 +236,8 @@
                 if (auditControls) auditControls.classList.add('hidden');
                 if (prodControls) prodControls.classList.add('hidden');
 
-                roleBadge.innerHTML = `<span>Doljnost: <b>${formattedName}</b></span>`;
-                document.getElementById('view-title').innerText = `Zadachi dlya: ${formattedName}`;
+                roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
+                document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
             } else {
                 currentRole = 'admin';
                 currentDept = null;
@@ -246,8 +246,8 @@
                 if (auditControls) auditControls.classList.remove('hidden');
                 if (prodControls) prodControls.classList.remove('hidden');
 
-                roleBadge.innerHTML = `<span>Rejim: <b>Administrator</b></span>`;
-                document.getElementById('view-title').innerText = `Vse zadachi seti (11 skladov)`;
+                roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
+                document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
             }
             renderCheckboxes();
             fetchFromCloud();
@@ -255,7 +255,7 @@
 
         function renderCheckboxes() {
             const container = document.getElementById('dept-checkboxes');
-            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Sklady</div>`;
+            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Склады</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
                     <input type="checkbox" name="task-dept" value="${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
@@ -263,19 +263,19 @@
                 </label>
             `).join('');
 
-            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Tolko RO</div>`;
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только РО</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
                     <input type="checkbox" name="task-dept" value="RO_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
-                    <span class="text-slate-200">RO ${wh}</span>
+                    <span class="text-slate-200">РО ${wh}</span>
                 </label>
             `).join('');
 
-            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Tolko SP</div>`;
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только СП</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
                     <input type="checkbox" name="task-dept" value="SP_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
-                    <span class="text-slate-200">SP ${wh}</span>
+                    <span class="text-slate-200">СП ${wh}</span>
                 </label>
             `).join('');
 
@@ -299,7 +299,7 @@
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('clock').innerText = `Tekushee vremya: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+            document.getElementById('clock').innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
             checkAlarms(now);
         }
 
@@ -314,7 +314,7 @@
                 });
             }
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl"> Aktivnykh zadach net</div>`;
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl"> Активных задач нет</div>`;
                 return;
             }
             container.innerHTML = filtered.map(t => {
@@ -329,7 +329,7 @@
                             </div>
                             <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                         </div>
-                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Vypolneno</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Vypolnit</button>`}</div>
+                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
                     </div>
                 `;
             }).join('');
@@ -344,11 +344,11 @@
         async function handleCreateTask(e) {
             e.preventDefault();
             const text = document.getElementById('task-text').value;
-            const time = document.getElementById('task-time'].value;
+            const time = document.getElementById('task-time').value;
             const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
 
             if (selectedDepts.length === 0) {
-                alert('Vyberite khotya by odnogo poluchatelya!');
+                alert('Выберите хотя бы одного получателя!');
                 return;
             }
 
@@ -403,7 +403,7 @@
             await saveToCloud();
             renderAudit();
             renderAuditChart();
-            alert('Audit sokhranyon v oblako!');
+            alert('Аудит сохранен в облако!');
         }
 
         function renderAuditChart() {
@@ -420,9 +420,9 @@
             auditChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ['Nedelya 1', 'Nedelya 2', 'Nedelya 3', 'Nedelya 4'],
+                    labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
                     datasets: [{
-                        label: `Audit ${targetWh} (${month})`,
+                        label: `Аудит ${targetWh} (${month})`,
                         data: data,
                         borderColor: '#0d9488',
                         backgroundColor: 'rgba(13, 148, 136, 0.1)',
@@ -456,7 +456,7 @@
                     <tr class="border-b border-slate-700/50">
                         <td class="p-3 font-bold text-teal-400">${wh}</td>
                         <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
-                        <td class="p-3 text-slate-400">${recentEntries || ' Net dannykh'}</td>
+                        <td class="p-3 text-slate-400">${recentEntries || ' Нет данных'}</td>
                     </tr>
                 `;
             }).join('');
@@ -466,9 +466,9 @@
             if(currentRole !== 'admin') return;
             const dateStr = document.getElementById('prod-date').value;
             const val = parseFloat(document.getElementById('prod-val').value);
-            let targetWh = prompt("Vvedite sklad:", "PP7");
+            let targetWh = prompt("Введите склад:", "PP7");
             
-            if(!dateStr || isNaN(val) || !targetWh) { alert('Zapolnite vse polya!'); return; }
+            if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните все поля!'); return; }
             targetWh = targetWh.trim().toUpperCase();
             if(!prodData[targetWh]) prodData[targetWh] = {};
             prodData[targetWh][dateStr] = val;
@@ -476,7 +476,7 @@
             await saveToCloud();
             renderProd();
             renderProdChart();
-            alert('Produktivnost dobavlena v oblako!');
+            alert('Продуктивность добавлена в облако!');
         }
 
         function renderProdChart() {
@@ -493,9 +493,9 @@
             prodChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels.length ? labels : ['Net dannykh'],
+                    labels: labels.length ? labels : ['Нет данных'],
                     datasets: [{
-                        label: `Produktivnost ${targetWh} (%)`,
+                        label: `Продуктивность ${targetWh} (%)`,
                         data: data.length ? data : [0],
                         borderColor: '#38bdf8',
                         backgroundColor: 'rgba(56, 189, 248, 0.1)',
@@ -527,7 +527,7 @@
             activeAlarmTask = task;
             document.getElementById('alarm-task-text').innerText = task.text;
             const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
-            document.getElementById('alarm-task-dept').innerText = `Komu: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
+            document.getElementById('alarm-task-dept').innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
             document.getElementById('alarm-overlay').classList.remove('hidden');
         }
 
