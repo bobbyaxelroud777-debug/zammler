@@ -548,7 +548,7 @@
                 if (!task.completed && task.time === currentHM) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
                     
-                    // Тревога срабатывает ТОЛЬКО на складах (у пользователей), админ сирену не получает
+                    // СТРОГОЕ ПРАВИЛО: админ никогда не получает звуковую сирену
                     if (currentRole === 'user' && currentDept) {
                         const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                         if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
@@ -590,7 +590,10 @@
         if(prodDateEl) prodDateEl.valueAsDate = new Date();
         
         initRole();
+        // Часы и проверка тревог каждую секунду
         setInterval(updateClock, 1000);
+        // АВТООБНОВЛЕНИЕ: подтягиваем данные из облака каждые 5 секунд без перезагрузки страницы
+        setInterval(fetchFromCloud, 5000);
     </script>
 </body>
 </html>
