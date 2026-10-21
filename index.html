@@ -191,58 +191,9 @@
         let auditChartInstance = null;
         let prodChartInstance = null;
 
-        let audioCtx = null;
-        let alarmInterval = null;
-
-        document.addEventListener('touchstart', initAudioContext, { once: true });
-        document.addEventListener('click', initAudioContext, { once: true });
-
-        function initAudioContext() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
-
-        // Резкая двухтональная сирена Code Red
-        function playCodeRedAlarm() {
-            try {
-                initAudioContext();
-                if (!audioCtx) return;
-
-                const now = audioCtx.currentTime;
-                const osc = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-
-                osc.type = 'sawtooth';
-                osc2.type = 'square';
-
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.linearRampToValueAtTime(1200, now + 0.25);
-                osc.frequency.linearRampToValueAtTime(600, now + 0.5);
-
-                osc2.frequency.setValueAtTime(400, now);
-                osc2.frequency.linearRampToValueAtTime(600, now + 0.25);
-                osc2.frequency.linearRampToValueAtTime(300, now + 0.5);
-
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-
-                osc.connect(gain);
-                osc2.connect(gain);
-                gain.connect(audioCtx.destination);
-
-                osc.start(now);
-                osc2.start(now);
-                osc.stop(now + 0.5);
-                osc2.stop(now + 0.5);
-            } catch (e) {
-                console.error("Audio error:", e);
-            }
-        }
+        // Плеер для файла alarm.mp3
+        let alarmAudio = new Audio('alarm.mp3');
+        alarmAudio.loop = true;
 
         async function fetchFromCloud() {
             try {
@@ -293,8 +244,9 @@
                 if (auditControls) auditControls.classList.add('hidden');
                 if (prodControls) prodControls.classList.add('hidden');
 
-                roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
-                document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
+                if(roleBadge) roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
+                const viewTitle = document.getElementById('view-title');
+                if(viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
             } else {
                 currentRole = 'admin';
                 currentDept = null;
@@ -303,8 +255,9 @@
                 if (auditControls) auditControls.classList.remove('hidden');
                 if (prodControls) prodControls.classList.remove('hidden');
 
-                roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
-                document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
+                if(roleBadge) roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
+                const viewTitle = document.getElementById('view-title');
+                if(viewTitle) viewTitle.innerText = `Все задачи сети (11 складов)`;
             }
             renderCheckboxes();
             fetchFromCloud();
@@ -312,6 +265,7 @@
 
         function renderCheckboxes() {
             const container = document.getElementById('dept-checkboxes');
+            if(!container) return;
             let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Склады</div>`;
             html += warehouses.map(wh => `
                 <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
@@ -345,23 +299,32 @@
 
         function switchTab(tab) {
             ['tasks', 'audit', 'productivity'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`tab-btn-${t}`).className = "px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.className = "px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
             });
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`tab-btn-${tab}`).className = "px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors";
+            const targetEl = document.getElementById(`tab-${tab}`);
+            const targetBtn = document.getElementById(`tab-btn-${tab}`);
+            if(targetEl) targetEl.classList.remove('hidden');
+            if(targetBtn) targetBtn.className = "px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors";
+            
             if(tab === 'audit') renderAuditChart();
             if(tab === 'productivity') renderProdChart();
         }
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('clock').innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+            const clockEl = document.getElementById('clock');
+            if(clockEl) {
+                clockEl.innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+            }
             checkAlarms(now);
         }
 
         function renderTasks() {
             const container = document.getElementById('tasks-container');
+            if(!container) return;
             let filtered = tasks;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
@@ -422,7 +385,9 @@
 
         function renderAudit() {
             const tbody = document.getElementById('audit-table-body');
-            const month = document.getElementById('audit-month').value;
+            const monthEl = document.getElementById('audit-month');
+            if(!tbody || !monthEl) return;
+            const month = monthEl.value;
             let list = warehouses;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
@@ -450,7 +415,9 @@
 
         async function saveAuditData() {
             if(currentRole !== 'admin') return;
-            const month = document.getElementById('audit-month').value;
+            const monthEl = document.getElementById('audit-month');
+            if(!monthEl) return;
+            const month = monthEl.value;
             document.querySelectorAll('#audit-table-body tr').forEach(tr => {
                 const wh = tr.getAttribute('data-wh');
                 const inputs = tr.querySelectorAll('.audit-input');
@@ -464,8 +431,11 @@
         }
 
         function renderAuditChart() {
-            const ctx = document.getElementById('auditChart').getContext('2d');
-            const month = document.getElementById('audit-month').value;
+            const canvas = document.getElementById('auditChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const monthEl = document.getElementById('audit-month');
+            const month = monthEl ? monthEl.value : '2026-10';
             let targetWh = warehouses[0];
             if (currentRole === 'user' && currentDept) {
                 targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
@@ -493,6 +463,7 @@
 
         function renderProd() {
             const tbody = document.getElementById('prod-table-body');
+            if(!tbody) return;
             let list = warehouses;
             if (currentRole === 'user' && currentDept) {
                 const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
@@ -504,4 +475,123 @@
                 const history = prodData[wh] || {};
                 const monthValues = Object.entries(history)
                     .filter(([date]) => date.startsWith(currentMonthPrefix))
-                    .map(([_, val])
+                    .map(([_, val]) => val);
+                
+                const avgMonth = monthValues.length ? (monthValues.reduce((a,b)=>a+b,0) / monthValues.length).toFixed(1) : 0;
+                const recentEntries = Object.entries(history).slice(-5).reverse().map(([d, v]) => `<span class="bg-slate-900 px-2 py-1 rounded text-xs mr-1">${d}: <b>${v}%</b></span>`).join('');
+
+                return `
+                    <tr class="border-b border-slate-700/50">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
+                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function addProdData() {
+            if(currentRole !== 'admin') return;
+            const dateInput = document.getElementById('prod-date');
+            const valInput = document.getElementById('prod-val');
+            if(!dateInput || !valInput) return;
+            const dateStr = dateInput.value;
+            const val = parseFloat(valInput.value);
+            let targetWh = prompt("Введите склад:", "PP7");
+            
+            if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните все поля!'); return; }
+            targetWh = targetWh.trim().toUpperCase();
+            if(!prodData[targetWh]) prodData[targetWh] = {};
+            prodData[targetWh][dateStr] = val;
+
+            await saveToCloud();
+            renderProd();
+            renderProdChart();
+            alert('Продуктивность добавлена в облако!');
+        }
+
+        function renderProdChart() {
+            const canvas = document.getElementById('prodChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const history = prodData[targetWh] || {};
+            const labels = Object.keys(history);
+            const data = Object.values(history);
+
+            if(prodChartInstance) prodChartInstance.destroy();
+            prodChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['Нет данных'],
+                    datasets: [{
+                        label: `Продуктивность ${targetWh} (%)`,
+                        data: data.length ? data : [0],
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+
+        function checkAlarms(now) {
+            if (activeAlarmTask) return;
+            const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            
+            tasks.forEach(task => {
+                if (!task.completed && task.time === currentHM) {
+                    const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+                    
+                    if (currentRole === 'user' && currentDept) {
+                        const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                        if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
+                            triggerAlarm(task);
+                        }
+                    } else if (currentRole === 'admin') {
+                        triggerAlarm(task);
+                    }
+                }
+            });
+        }
+
+        function triggerAlarm(task) {
+            activeAlarmTask = task;
+            const taskTextEl = document.getElementById('alarm-task-text');
+            const taskDeptEl = document.getElementById('alarm-task-dept');
+            const overlayEl = document.getElementById('alarm-overlay');
+            
+            if(taskTextEl) taskTextEl.innerText = task.text;
+            const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+            if(taskDeptEl) taskDeptEl.innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
+            if(overlayEl) overlayEl.classList.remove('hidden');
+
+            alarmAudio.currentTime = 0;
+            alarmAudio.play().catch(err => console.log('Audio play error:', err));
+        }
+
+        async function acknowledgeAlarm() {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+
+            if (activeAlarmTask) {
+                await markCompleted(activeAlarmTask.id);
+                activeAlarmTask = null;
+            }
+            const overlayEl = document.getElementById('alarm-overlay');
+            if(overlayEl) overlayEl.classList.add('hidden');
+        }
+
+        const prodDateEl = document.getElementById('prod-date');
+        if(prodDateEl) prodDateEl.valueAsDate = new Date();
+        
+        initRole();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
