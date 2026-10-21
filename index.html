@@ -191,9 +191,15 @@
         let auditChartInstance = null;
         let prodChartInstance = null;
 
-        // Плеер для файла alarm.mp3
         let alarmAudio = new Audio('alarm.mp3');
         alarmAudio.loop = true;
+
+        // Запрос системных разрешений на уведомления на телефоне
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission !== 'granted') {
+                Notification.requestPermission();
+            }
+        }
 
         async function fetchFromCloud() {
             try {
@@ -261,6 +267,7 @@
             }
             renderCheckboxes();
             fetchFromCloud();
+            requestNotificationPermission();
         }
 
         function renderCheckboxes() {
@@ -548,7 +555,6 @@
                 if (!task.completed && task.time === currentHM) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
                     
-                    // СТРОГОЕ ПРАВИЛО: админ никогда не получает звуковую сирену
                     if (currentRole === 'user' && currentDept) {
                         const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                         if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
@@ -572,6 +578,21 @@
 
             alarmAudio.currentTime = 0;
             alarmAudio.play().catch(err => console.log('Audio play error:', err));
+
+            // Запуск системного уведомления Android/PWA
+            if ('Notification' in window && Notification.permission === 'granted') {
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(registration => {
+                        registration.showNotification("🚨 ZAMMLER: ВРЕМЯ ЗАДАЧИ!", {
+                            body: task.text,
+                            icon: "icon.png",
+                            badge: "icon.png",
+                            vibrate: [500, 200, 500, 200, 500],
+                            requireInteraction: true
+                        });
+                    });
+                }
+            }
         }
 
         async function acknowledgeAlarm() {
@@ -590,17 +611,15 @@
         if(prodDateEl) prodDateEl.valueAsDate = new Date();
         
         initRole();
-        // Часы и проверка тревог каждую секунду
         setInterval(updateClock, 1000);
-        // АВТООБНОВЛЕНИЕ: подтягиваем данные из облака каждые 5 секунд без перезагрузки страницы
         setInterval(fetchFromCloud, 5000);
     </script>
-<script>
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-        .then(() => console.log('Background Worker активен'))
-        .catch(err => console.log('SW error:', err));
-    }
-</script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+            .then(() => console.log('Background Worker активен'))
+            .catch(err => console.error('SW error:', err));
+        }
+    </script>
 </body>
 </html>
