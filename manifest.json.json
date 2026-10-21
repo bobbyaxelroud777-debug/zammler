@@ -1,8 +1,9 @@
 {
+  "id": "/zammler/",
   "name": "ZAMMLER Сеть 1",
   "short_name": "ZAMMLER",
-  "start_url": "/zammler/",
-  "scope": "/zammler/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#00838f",
