@@ -1,32 +1,389 @@
-// Гарантированное определение роли по URL (?dept=РО_ПП7 или ?dept=СП_ПП7)
-function initRole() {
-    const params = new URLSearchParams(window.location.search);
-    const deptParam = params.get('dept');
-    const roleBadge = document.getElementById('role-badge');
-    const adminPanel = document.getElementById('admin-panel');
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZAMMLER - Управление задачами</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { background-color: #0f172a; }
+            50% { background-color: #7f1d1d; }
+        }
+        .alarm-active {
+            animation: pulse-red 1s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
 
-    if (deptParam && deptParam.trim() !== '') {
-        currentRole = 'user';
-        currentDept = decodeURIComponent(deptParam).replace(/\s+/g, '_');
-        const formattedName = currentDept.replace('_', ' ');
+    <!-- Хедер -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-teal-600 p-2 rounded-lg text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight flex items-center space-x-2">
+                        <span>ZAMMLER</span>
+                        <span class="text-xs bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded border border-teal-700">СЕТЬ СКТ</span>
+                    </h1>
+                    <p class="text-xs text-slate-400" id="clock">Текущее время: --:--</p>
+                </div>
+            </div>
+            
+            <div id="role-badge" class="flex items-center space-x-2 bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-600 text-sm">
+                <!-- Заполняется автоматически -->
+            </div>
+        </div>
+    </header>
 
-        // Прячем панель админа для сотрудников
-        if (adminPanel) adminPanel.classList.add('hidden');
-
-        roleBadge.innerHTML = `
-            <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-7h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-            <span>Должность: <b>${formattedName}</b></span>
-        `;
-        document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
-    } else {
-        currentRole = 'admin';
-        currentDept = null;
-        if (adminPanel) adminPanel.classList.remove('hidden');
+    <!-- Основной контент -->
+    <main class="max-w-5xl mx-auto w-full p-4 flex-grow">
         
-        roleBadge.innerHTML = `
-            <span class="w-2 h-2 rounded-full bg-purple-500 mr-1"></span>
-            <span>Режим: <b>Администратор</b></span>
-        `;
-        document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
-    }
-}
+        <!-- Панель управления Админа -->
+        <div id="admin-panel" class="hidden mb-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold text-teal-400">Панель администратора</h2>
+                <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors flex items-center space-x-2">
+                    <span>+ Создать задачу</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Заголовок и статус облачной базы -->
+        <div class="mb-4 flex justify-between items-end">
+            <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
+            <span id="sync-status" class="text-xs text-slate-400 flex items-center">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                Облако синхронизировано
+            </span>
+        </div>
+
+        <!-- Список задач -->
+        <div id="tasks-container" class="space-y-3">
+            <div class="text-center py-10 text-slate-500">Загрузка задач из единой базы...</div>
+        </div>
+    </main>
+
+    <!-- Модальное окно создания задачи (для Админа) -->
+    <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
+            
+            <form id="task-form" onsubmit="handleCreateTask(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
+                    <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm" placeholder="Например: Проверить накладные">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Получатель</label>
+                        <select id="task-dept" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm">
+                            <optgroup label="Весь склад (И РО, и СП)">
+                                <option value="ПП7">ПП7 (Весь склад)</option>
+                                <option value="ПП10">ПП10 (Весь склад)</option>
+                                <option value="ПП11">ПП11 (Весь склад)</option>
+                                <option value="ПП12">ПП12 (Весь склад)</option>
+                                <option value="ПП13">ПП13 (Весь склад)</option>
+                                <option value="ПП15">ПП15 (Весь склад)</option>
+                                <option value="ПП16">ПП16 (Весь склад)</option>
+                                <option value="ПП21">ПП21 (Весь склад)</option>
+                                <option value="ПП24">ПП24 (Весь склад)</option>
+                                <option value="ПП30">ПП30 (Весь склад)</option>
+                                <option value="ПП32">ПП32 (Весь склад)</option>
+                            </optgroup>
+                            <optgroup label="Только Руководители (РО)">
+                                <option value="РО_ПП7">РО ПП7</option>
+                                <option value="РО_ПП10">РО ПП10</option>
+                                <option value="РО_ПП11">РО ПП11</option>
+                                <option value="РО_ПП12">РО ПП12</option>
+                                <option value="РО_ПП13">РО ПП13</option>
+                                <option value="РО_ПП15">РО ПП15</option>
+                                <option value="РО_ПП16">РО ПП16</option>
+                                <option value="РО_ПП21">РО ПП21</option>
+                                <option value="РО_ПП24">РО ПП24</option>
+                                <option value="РО_ПП30">РО ПП30</option>
+                                <option value="РО_ПП32">РО ПП32</option>
+                            </optgroup>
+                            <optgroup label="Только Старшие приемщики (СП)">
+                                <option value="СП_ПП7">СП ПП7</option>
+                                <option value="СП_ПП10">СП ПП10</option>
+                                <option value="СП_ПП11">СП ПП11</option>
+                                <option value="СП_ПП12">СП ПП12</option>
+                                <option value="СП_ПП13">СП ПП13</option>
+                                <option value="СП_ПП15">СП ПП15</option>
+                                <option value="СП_ПП16">СП ПП16</option>
+                                <option value="СП_ПП21">СП ПП21</option>
+                                <option value="СП_ПП24">СП ПП24</option>
+                                <option value="СП_ПП30">СП ПП30</option>
+                                <option value="СП_ПП32">СП ПП32</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Время срабатывания</label>
+                        <input type="time" id="task-time" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 focus:outline-none focus:border-teal-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm hover:bg-slate-600">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-500 font-medium">Отправить задаче</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Полноэкранный алерт тревоги -->
+    <div id="alarm-overlay" class="fixed inset-0 bg-red-900/90 hidden z-50 flex flex-col items-center justify-center p-6 text-center backdrop-blur-md">
+        <div class="bg-slate-950 border-2 border-red-500 p-8 rounded-3xl max-w-lg w-full shadow-2xl animate-bounce">
+            <div class="w-16 h-16 bg-red-600/20 text-red-500 border border-red-500/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <h2 class="text-2xl font-black text-white mb-2 uppercase tracking-wider">ВНИМАНИЕ! ВРЕМЯ ЗАДАЧИ!</h2>
+            <p id="alarm-task-text" class="text-xl text-slate-200 font-bold mb-2">--</p>
+            <p id="alarm-task-dept" class="text-sm text-red-400 mb-6">--</p>
+            <button id="alarm-confirm-btn" onclick="acknowledgeAlarm()" class="w-full bg-white text-red-950 font-black text-lg py-4 rounded-xl shadow-lg hover:bg-slate-100 transition-colors">
+                ПОДТВЕРДИТЬ ВЫПОЛНЕНИЕ
+            </button>
+        </div>
+    </div>
+
+    <!-- Логика приложения -->
+    <script>
+        // ==========================================
+        // 🔑 ВСТАВЬТЕ ВАШИ КЛЮЧИ JSONBIN.IO СЮДА:
+        // ==========================================
+        const JSONBIN_BIN_ID = "JSONbin.io"; 
+        const JSONBIN_KEY = "JSONbin.io"; 
+
+        let tasks = [];
+        let currentRole = 'admin'; 
+        let currentDept = null;
+        let activeAlarmTask = null;
+        let audioCtx = null;
+        let sirenInterval = null;
+
+        // Гарантированное определение роли по URL
+        function initRole() {
+            const params = new URLSearchParams(window.location.search);
+            const deptParam = params.get('dept');
+            const roleBadge = document.getElementById('role-badge');
+            const adminPanel = document.getElementById('admin-panel');
+
+            if (deptParam && deptParam.trim() !== '') {
+                currentRole = 'user';
+                currentDept = decodeURIComponent(deptParam).replace(/\s+/g, '_');
+                const formattedName = currentDept.replace('_', ' ');
+
+                if (adminPanel) adminPanel.classList.add('hidden');
+
+                roleBadge.innerHTML = `
+                    <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-7h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                    <span>Должность: <b>${formattedName}</b></span>
+                `;
+                document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
+            } else {
+                currentRole = 'admin';
+                currentDept = null;
+                if (adminPanel) adminPanel.classList.remove('hidden');
+                
+                roleBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-purple-500 mr-1"></span>
+                    <span>Режим: <b>Администратор</b></span>
+                `;
+                document.getElementById('view-title').innerText = `Все задачи сети (11 складов)`;
+            }
+        }
+
+        // Часы
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('clock').innerText = `Текущее время: ${timeStr}`;
+            checkAlarms(now);
+        }
+
+        // Сирена (Web Audio API)
+        function playSirenSound() {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 1.2);
+                
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 1.2);
+            } catch(e) { console.log('Аудио ошибка:', e); }
+        }
+
+        // Загрузка из облака
+        async function loadFromCloud() {
+            if (!JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("ВСТАВЬТЕ")) return;
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: { "X-Master-Key": JSONBIN_KEY }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data.record)) {
+                        tasks = data.record;
+                        localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+                        renderTasks();
+                    }
+                }
+            } catch (e) {
+                const local = localStorage.getItem('zammler_tasks');
+                if (local) tasks = JSON.parse(local);
+                renderTasks();
+            }
+        }
+
+        // Сохранение в облако
+        async function saveToCloud() {
+            localStorage.setItem('zammler_tasks', JSON.stringify(tasks));
+            renderTasks();
+            if (!JSONBIN_BIN_ID || JSONBIN_BIN_ID.includes("ВСТАВЬТЕ")) return;
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Master-Key": JSONBIN_KEY
+                    },
+                    body: JSON.stringify(tasks)
+                });
+            } catch (e) {
+                console.error('Ошибка сохранения:', e);
+            }
+        }
+
+        // Фильтрация задач по ролям
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            let filteredTasks = tasks;
+
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+
+                filteredTasks = tasks.filter(t => {
+                    return t.dept === currentDept || t.dept === baseWarehouse;
+                });
+            }
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
+                return;
+            }
+
+            container.innerHTML = filteredTasks.map(t => `
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center ${t.completed ? 'opacity-50' : ''}">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
+                            <span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${t.dept.replace('_', ' ')}</span>
+                        </div>
+                        <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
+                    </div>
+                    <div>
+                        ${t.completed ? `
+                            <span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>
+                        ` : `
+                            <button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition-colors">Выполнить</button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Проверка сирены
+        function checkAlarms(now) {
+            if (activeAlarmTask) return;
+
+            const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+            tasks.forEach(task => {
+                if (!task.completed && task.time === currentHM) {
+                    if (currentRole === 'admin') {
+                        triggerAlarm(task);
+                    } else if (currentDept) {
+                        const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                        if (task.dept === currentDept || task.dept === baseWarehouse) {
+                            triggerAlarm(task);
+                        }
+                    }
+                }
+            });
+        }
+
+        function triggerAlarm(task) {
+            activeAlarmTask = task;
+            document.getElementById('alarm-task-text').innerText = task.text;
+            document.getElementById('alarm-task-dept').innerText = `Адресат: ${task.dept.replace('_', ' ')}`;
+            document.getElementById('alarm-overlay').classList.remove('hidden');
+
+            playSirenSound();
+            sirenInterval = setInterval(playSirenSound, 1500);
+        }
+
+        function acknowledgeAlarm() {
+            if (activeAlarmTask) {
+                markCompleted(activeAlarmTask.id);
+                activeAlarmTask = null;
+            }
+            if (sirenInterval) clearInterval(sirenInterval);
+            document.getElementById('alarm-overlay').classList.add('hidden');
+        }
+
+        function markCompleted(id) {
+            tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
+            saveToCloud();
+        }
+
+        function handleCreateTask(e) {
+            e.preventDefault();
+            const text = document.getElementById('task-text').value;
+            const dept = document.getElementById('task-dept').value;
+            const time = document.getElementById('task-time').value;
+
+            const newTask = {
+                id: Date.now().toString(),
+                text,
+                dept,
+                time,
+                completed: false
+            };
+
+            tasks.unshift(newTask);
+            saveToCloud();
+            closeModal();
+            document.getElementById('task-form').reset();
+        }
+
+        function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
+
+        initRole();
+        loadFromCloud();
+        setInterval(updateClock, 1000);
+        setInterval(loadFromCloud, 4000);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/zammler/sw.js').catch(e => console.log(e));
+        }
+    </script>
+</body>
+</html>
