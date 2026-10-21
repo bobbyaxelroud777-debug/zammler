@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZAMMLER - Аудит, Продуктивность и Задачи</title>
+    <title>ZAMMLER - Сеть 1</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -27,24 +27,22 @@
                 <div>
                     <h1 class="font-bold text-lg leading-tight flex items-center space-x-2">
                         <span>ZAMMLER</span>
-                        <span class="text-xs bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded border border-teal-700">СЕТЬ СКТ</span>
+                        <span class="text-xs bg-teal-900/80 text-teal-300 px-2 py-0.5 rounded border border-teal-700">СЕТЬ 1</span>
                     </h1>
                     <p class="text-xs text-slate-400" id="clock">Текущее время: --:--</p>
                 </div>
             </div>
             
-            <div id="role-badge" class="flex items-center space-x-2 bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-600 text-sm">
-                <!-- Заполняется автоматически -->
-            </div>
+            <div id="role-badge" class="flex items-center space-x-2 bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-600 text-sm"></div>
         </div>
     </header>
 
     <!-- Навигация по вкладкам -->
     <nav class="bg-slate-800/60 border-b border-slate-700/60 sticky top-[73px] z-30 backdrop-blur-md">
         <div class="max-w-6xl mx-auto flex space-x-2 p-2">
-            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">📋 Задачи и Сирена</button>
-            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">📊 Аудит (Раз в неделю)</button>
-            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">⚡ Продуктивность (Ежедневно)</button>
+            <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors">Задачи</button>
+            <button onclick="switchTab('audit')" id="tab-btn-audit" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Аудит</button>
+            <button onclick="switchTab('productivity')" id="tab-btn-productivity" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Продуктивность</button>
         </div>
     </nav>
 
@@ -70,11 +68,12 @@
         <div id="tab-audit" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Аудит склада (Еженедельно)</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Аудит склада</h2>
                     <div id="audit-controls" class="hidden flex space-x-2">
-                        <select id="audit-month" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
+                        <select id="audit-month" onchange="renderAudit()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
                             <option value="2026-10">Октябрь 2026</option>
                             <option value="2026-11">Ноябрь 2026</option>
+                            <option value="2026-12">Декабрь 2026</option>
                         </select>
                         <button onclick="saveAuditData()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-1.5 rounded-lg text-sm font-medium">Сохранить аудит</button>
                     </div>
@@ -91,13 +90,10 @@
                                 <th class="p-3 text-teal-300">Среднее (Текущее)</th>
                             </tr>
                         </thead>
-                        <tbody id="audit-table-body">
-                            <!-- Динамически заполняется -->
-                        </tbody>
+                        <tbody id="audit-table-body"></tbody>
                     </table>
                 </div>
             </div>
-            <!-- График аудита за весь период -->
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <h3 class="text-md font-bold text-slate-200 mb-3">Динамика аудита за весь период</h3>
                 <div class="h-64"><canvas id="auditChart"></canvas></div>
@@ -108,7 +104,7 @@
         <div id="tab-productivity" class="hidden space-y-6">
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-teal-400">Продуктивность (Ежедневный ввод за вчера)</h2>
+                    <h2 class="text-lg font-bold text-teal-400">Продуктивность</h2>
                     <div id="prod-controls" class="hidden flex space-x-2 items-center">
                         <input type="date" id="prod-date" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
                         <input type="number" id="prod-val" placeholder="Значение (%)" class="w-32 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-100">
@@ -124,13 +120,10 @@
                                 <th class="p-3">Последние дни (История)</th>
                             </tr>
                         </thead>
-                        <tbody id="prod-table-body">
-                            <!-- Динамически заполняется -->
-                        </tbody>
+                        <tbody id="prod-table-body"></tbody>
                     </table>
                 </div>
             </div>
-            <!-- График продуктивности -->
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
                 <h3 class="text-md font-bold text-slate-200 mb-3">График продуктивности</h3>
                 <div class="h-64"><canvas id="prodChart"></canvas></div>
@@ -204,7 +197,6 @@
         let currentRole = 'admin';
         let currentDept = null;
         let activeAlarmTask = null;
-        let audioCtx = null;
         let auditChartInstance = null;
         let prodChartInstance = null;
 
@@ -220,16 +212,17 @@
                 currentRole = 'user';
                 currentDept = decodeURIComponent(deptParam).replace(/\s+/g, '_');
                 const formattedName = currentDept.replace('_', ' ');
+                
                 if (adminPanel) adminPanel.classList.add('hidden');
-                if (auditControls) auditControls.classList.add('hidden'); // Только админ или по правилам забивает? Пусть забивают оба или админ, оставим видимым для всех или только админа. Сделаем доступным для заполнения всем сотрудникам склада.
-                if (auditControls) auditControls.classList.remove('hidden');
-                if (prodControls) prodControls.classList.remove('hidden');
+                if (auditControls) auditControls.classList.add('hidden');
+                if (prodControls) prodControls.classList.add('hidden');
 
                 roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
                 document.getElementById('view-title').innerText = `Задачи для: ${formattedName}`;
             } else {
                 currentRole = 'admin';
                 currentDept = null;
+                
                 if (adminPanel) adminPanel.classList.remove('hidden');
                 if (auditControls) auditControls.classList.remove('hidden');
                 if (prodControls) prodControls.classList.remove('hidden');
@@ -305,7 +298,6 @@
         function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
-        // Аудит логика
         function renderAudit() {
             const tbody = document.getElementById('audit-table-body');
             const month = document.getElementById('audit-month').value;
@@ -315,6 +307,8 @@
                 list = [baseWarehouse];
             }
 
+            const isDisabled = currentRole === 'user' ? 'disabled' : '';
+
             tbody.innerHTML = list.map(wh => {
                 const key = `${wh}_${month}`;
                 const data = auditData[key] || [0, 0, 0, 0];
@@ -323,10 +317,10 @@
                 return `
                     <tr class="border-b border-slate-700/50" data-wh="${wh}">
                         <td class="p-3 font-bold text-teal-400">${wh}</td>
-                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="0" value="${data[0]||''}"></td>
-                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="1" value="${data[1]||''}"></td>
-                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="2" value="${data[2]||''}"></td>
-                        <td class="p-3"><input type="number" class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="3" value="${data[3]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="0" value="${data[0]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="1" value="${data[1]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="2" value="${data[2]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="3" value="${data[3]||''}"></td>
                         <td class="p-3 font-bold text-teal-300 avg-cell">${avg}</td>
                     </tr>
                 `;
@@ -334,6 +328,7 @@
         }
 
         function saveAuditData() {
+            if(currentRole !== 'admin') return;
             const month = document.getElementById('audit-month').value;
             document.querySelectorAll('#audit-table-body tr').forEach(tr => {
                 const wh = tr.getAttribute('data-wh');
@@ -375,7 +370,6 @@
             });
         }
 
-        // Продуктивность логика
         function renderProd() {
             const tbody = document.getElementById('prod-table-body');
             let list = warehouses;
@@ -384,11 +378,10 @@
                 list = [baseWarehouse];
             }
 
-            const currentMonthPrefix = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const currentMonthPrefix = new Date().toISOString().slice(0, 7);
 
             tbody.innerHTML = list.map(wh => {
-                const history = prodData[wh] || {}; // { "2026-10-20": 95, ... }
-                // Считаем среднее с 1-го числа текущего месяца
+                const history = prodData[wh] || {};
                 const monthValues = Object.entries(history)
                     .filter(([date]) => date.startsWith(currentMonthPrefix))
                     .map(([_, val]) => val);
@@ -400,26 +393,23 @@
                     <tr class="border-b border-slate-700/50">
                         <td class="p-3 font-bold text-teal-400">${wh}</td>
                         <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
-                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных за месяц'}</td>
+                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных'}</td>
                     </tr>
                 `;
             }).join('');
         }
 
         function addProdData() {
+            if(currentRole !== 'admin') return;
             const dateStr = document.getElementById('prod-date').value;
             const val = parseFloat(document.getElementById('prod-val').value);
-            let targetWh = warehouses[0];
-            if (currentRole === 'user' && currentDept) {
-                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-            } else {
-                targetWh = prompt("Введите склад (например, ПП7):", "ПП7");
-            }
+            let targetWh = prompt("Введите склад для внесения данных (например, ПП7):", "ПП7");
+            
             if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните дату и значение!'); return; }
 
+            targetWh = targetWh.trim().toUpperCase();
             if(!prodData[targetWh]) prodData[targetWh] = {};
             prodData[targetWh][dateStr] = val;
-            // Сортировка по дате
             prodData[targetWh] = Object.keys(prodData[targetWh]).sort().reduce((obj, key) => { obj[key] = prodData[targetWh][key]; return obj; }, {});
 
             localStorage.setItem('zammler_prod', JSON.stringify(prodData));
