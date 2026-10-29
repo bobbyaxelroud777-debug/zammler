@@ -18,7 +18,7 @@
         .alarm-active { animation: pulse-red 1s infinite; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col" onload="initRole()">
 
     <!-- Header -->
     <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
@@ -63,7 +63,6 @@
             </div>
             <div class="flex justify-between items-end">
                 <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
-                <span class="text-xs text-emerald-400 flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>Облачная синхронизация</span>
             </div>
             <div id="tasks-container" class="space-y-3">
                 <div class="text-center py-10 text-slate-500">Загрузка задач из облака...</div>
@@ -178,7 +177,7 @@
 
     <script>
         const BIN_ID = '6ad86195ac6210605a44aedd';
-        const MASTER_KEY = '\$2a\$10\$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
+        const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
         
         const warehouses = ["PP7", "PP10", "PP11", "PP12", "PP13", "PP15", "PP16", "PP21", "PP24", "PP30", "PP32"];
         let tasks = [];
@@ -285,6 +284,8 @@
             renderCheckboxes();
             fetchFromCloud();
             requestNotificationPermission();
+            setInterval(updateClock, 1000);
+            updateClock();
         }
 
         function renderCheckboxes() {
@@ -373,7 +374,7 @@
                             </div>
                             <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                         </div>
-                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('\${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
+                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
                     </div>
                 `;
             }).join('');
@@ -596,46 +597,17 @@
             alarmAudio.currentTime = 0;
             alarmAudio.play().catch(err => console.log('Audio play error:', err));
 
-            // Вызов системного пуш-уведомления
             if ('Notification' in window && Notification.permission === 'granted') {
-                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.ready.then(registration => {
-                        registration.showNotification("🚨 ZAMMLER: ВРЕМЯ ЗАДАЧИ!", {
-                            body: task.text,
-                            icon: "icon.png",
-                            badge: "icon.png",
-                            vibrate: [500, 200, 500, 200, 500],
-                            requireInteraction: true
-                        });
-                    }).catch(err => console.log('Notification error:', err));
-                }
+                new Notification('Внимание! Время задачи!', { body: task.text });
             }
         }
 
-        async function acknowledgeAlarm() {
+        function acknowledgeAlarm() {
             alarmAudio.pause();
             alarmAudio.currentTime = 0;
-
-            if (activeAlarmTask) {
-                await markCompleted(activeAlarmTask.id);
-                activeAlarmTask = null;
-            }
             const overlayEl = document.getElementById('alarm-overlay');
             if(overlayEl) overlayEl.classList.add('hidden');
-        }
-
-        const prodDateEl = document.getElementById('prod-date');
-        if(prodDateEl) prodDateEl.valueAsDate = new Date();
-        
-        initRole();
-        setInterval(updateClock, 1000);
-        setInterval(fetchFromCloud, 5000);
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-            .then(() => console.log('Background Worker активен'))
-            .catch(err => console.error('SW error:', err));
+            activeAlarmTask = null;
         }
     </script>
 </body>
