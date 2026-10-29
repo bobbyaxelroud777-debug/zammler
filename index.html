@@ -193,7 +193,6 @@
         let alarmAudio = new Audio('alarm.mp3');
         alarmAudio.loop = true;
 
-        // Разблокировка звука при первом касании экрана
         document.addEventListener('click', () => {
             if (alarmAudio.paused) {
                 alarmAudio.play().then(() => {
@@ -251,11 +250,15 @@
             const auditControls = document.getElementById('audit-controls');
             const prodControls = document.getElementById('prod-controls');
 
-            if (deptParam && deptParam.trim() !== '') {
-                localStorage.setItem('zammler_dept', deptParam.trim());
+            if (deptParam !== null) {
+                if (deptParam.trim() !== '') {
+                    localStorage.setItem('zammler_dept', deptParam.trim());
+                } else {
+                    localStorage.removeItem('zammler_dept');
+                }
             }
 
-            const activeDept = deptParam || localStorage.getItem('zammler_dept');
+            const activeDept = deptParam !== null ? (deptParam.trim() !== '' ? deptParam.trim() : null) : localStorage.getItem('zammler_dept');
 
             if (activeDept && activeDept.trim() !== '') {
                 currentRole = 'user';
