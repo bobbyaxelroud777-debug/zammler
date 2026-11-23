@@ -95,7 +95,7 @@ jobs:
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "Authorization": `Basic ${REST_KEY}`
+                 "Authorization": `Key ${REST_KEY}`
                 },
                 body: JSON.stringify(payload)
               });
