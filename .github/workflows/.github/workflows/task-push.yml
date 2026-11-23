@@ -1,0 +1,83 @@
+name: Send Task Push Notifications
+
+on:
+  schedule:
+    - cron: '* * * * *'
+  workflow_dispatch:
+
+jobs:
+  send-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check tasks and send OneSignal push
+        env:
+          ONESIGNAL_APP_ID: ${{ secrets.ONESIGNAL_APP_ID }}
+          ONESIGNAL_REST_API_KEY: ${{ secrets.ONESIGNAL_REST_API_KEY }}
+        run: |
+          node -e '
+            const BIN_ID = "6ad86195ac6210605a44aedd";
+            const MASTER_KEY = "$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe";
+            const APP_ID = process.env.ONESIGNAL_APP_ID;
+            const REST_KEY = process.env.ONESIGNAL_REST_API_KEY;
+
+            const TZ_OFFSET_MIN = 5 * 60;
+            const now = new Date(Date.now() + TZ_OFFSET_MIN * 60 * 1000);
+            const hh = String(now.getUTCHours()).padStart(2, "0");
+            const mm = String(now.getUTCMinutes()).padStart(2, "0");
+            const currentHM = `${hh}:${mm}`;
+
+            const DEPT_LINKS = {
+              PP7: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp7_4821",
+              PP10: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp10_7319",
+              PP11: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp11_2954",
+              PP12: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp12_6183",
+              PP13: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp13_8507",
+              PP15: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp15_3746",
+              PP16: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp16_9260",
+              PP21: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp21_5418",
+              PP24: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp24_1692",
+              PP30: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp30_8035",
+              PP32: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp32_4579"
+            };
+
+            (async () => {
+              const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { "X-Master-Key": MASTER_KEY }
+              });
+              const json = await res.json();
+              const tasks = (json.record && json.record.tasks) || [];
+              const dueTasks = tasks.filter(t => !t.completed && t.status !== "cancelled" && t.time === currentHM);
+
+              for (const task of dueTasks) {
+                const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+                const firstWh = depts.map(d => d.includes("_") ? d.split("_")[1] : d).find(w => DEPT_LINKS[w]);
+                const targetUrl = (firstWh && DEPT_LINKS[firstWh]) || "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp11_2954";
+
+                const filters = [];
+                depts.forEach((d, idx) => {
+                  if (idx > 0) filters.push({ operator: "OR" });
+                  const wh = d.includes("_") ? d.split("_")[1] : d;
+                  if (d.startsWith("RO_") || d.startsWith("SP_")) {
+                    filters.push({ field: "tag", key: "dept", relation: "=", value: d });
+                  } else {
+                    filters.push({ field: "tag", key: "warehouse", relation: "=", value: wh });
+                  }
+                });
+
+                await fetch("https://api.onesignal.com/notifications", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Basic ${REST_KEY}`
+                  },
+                  body: JSON.stringify({
+                    app_id: APP_ID,
+                    headings: { en: "ZAMMLER: Время задачи!" },
+                    contents: { en: task.text },
+                    url: targetUrl,
+                    filters
+                  })
+                });
+              }
+            })();
+          '
