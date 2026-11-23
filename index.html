@@ -440,9 +440,25 @@
             return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
-        function renderTaskAction(task, nowMs) {
+        function getTaskOutcome(task, nowMs) {
             if (task.completed) {
-                return `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800 whitespace-nowrap">✓ Выполнено</span>`;
+                return task.status === 'failed' ? 'failed' : 'success';
+            }
+            if (task.startedAt && (nowMs - task.startedAt) > MAX_WORK_MS) {
+                return 'expired';
+            }
+            return 'active';
+        }
+
+        function renderTaskAction(task, nowMs) {
+            const outcome = getTaskOutcome(task, nowMs);
+
+            if (outcome === 'success') {
+                return `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800 whitespace-nowrap">✓ Успешно</span>`;
+            }
+
+            if (outcome === 'expired' || outcome === 'failed') {
+                return `<span class="text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-red-950 border border-red-800 whitespace-nowrap">✕ Просрочена</span>`;
             }
 
             if (!task.startedAt) {
@@ -464,23 +480,12 @@
                 `;
             }
 
-            if (remainingToDeadline > 0) {
-                return `
-                    <div class="flex flex-col items-end space-y-1">
-                        <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            Выполнить
-                        </button>
-                        <span class="text-[11px] text-teal-300">Ост. времени: ${formatDurationMMSS(remainingToDeadline)}</span>
-                    </div>
-                `;
-            }
-
             return `
                 <div class="flex flex-col items-end space-y-1">
-                    <button onclick="markCompleted('${task.id}')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
-                        Выполнить (просрочено)
+                    <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                        Выполнить
                     </button>
-                    <span class="text-[11px] text-red-400 font-medium">30 мин истекли</span>
+                    <span class="text-[11px] text-teal-300">Ост. времени: ${formatDurationMMSS(remainingToDeadline)}</span>
                 </div>
             `;
         }
@@ -505,18 +510,22 @@
             container.innerHTML = filtered.map(t => {
                 const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
                 const deptBadges = depts.map(d => `<span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${d.replace('_', ' ')}</span>`).join(' ');
-                const statusBadge = (!t.completed && t.startedAt)
+                const outcome = getTaskOutcome(t, nowMs);
+                const isClosed = outcome === 'success' || outcome === 'expired' || outcome === 'failed';
+                const statusBadge = (outcome === 'active' && t.startedAt)
                     ? `<span class="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">В работе</span>`
-                    : '';
+                    : (outcome === 'expired' || outcome === 'failed')
+                        ? `<span class="text-xs bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Просрочена</span>`
+                        : '';
                 return `
-                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center gap-3 ${t.completed ? 'opacity-50' : ''}">
+                    <div class="bg-slate-800 p-4 rounded-xl border ${outcome === 'expired' || outcome === 'failed' ? 'border-red-800/60' : 'border-slate-700'} flex justify-between items-center gap-3 ${isClosed ? 'opacity-75' : ''}">
                         <div>
                             <div class="flex items-center space-x-2 mb-1 flex-wrap gap-1">
                                 <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
                                 ${deptBadges}
                                 ${statusBadge}
                             </div>
-                            <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
+                            <p class="font-medium text-slate-100 ${outcome === 'success' ? 'line-through text-slate-400' : ''}">${t.text}</p>
                         </div>
                         <div>${renderTaskAction(t, nowMs)}</div>
                     </div>
@@ -527,18 +536,26 @@
         async function startTask(id) {
             if (currentRole === 'denied') return;
             const startedNow = Date.now();
-            tasks = tasks.map(t => (t.id === id && !t.startedAt) ? { ...t, startedAt: startedNow } : t);
+            tasks = tasks.map(t => (t.id === id && !t.startedAt && !t.completed) ? { ...t, startedAt: startedNow } : t);
             renderTasks();
             await saveToCloud();
         }
 
         async function markCompleted(id) {
             if (currentRole === 'denied') return;
+            const nowMs = Date.now();
             const target = tasks.find(t => t.id === id);
-            if (!target || !target.startedAt) return;
-            if ((Date.now() - target.startedAt) < MIN_WORK_MS) return;
+            if (!target || !target.startedAt || target.completed) return;
+            const elapsed = nowMs - target.startedAt;
+            if (elapsed < MIN_WORK_MS) return;
 
-            tasks = tasks.map(t => t.id === id ? { ...t, completed: true, completedAt: Date.now() } : t);
+            const isSuccess = elapsed <= MAX_WORK_MS;
+            tasks = tasks.map(t => t.id === id ? {
+                ...t,
+                completed: true,
+                status: isSuccess ? 'success' : 'failed',
+                completedAt: nowMs
+            } : t);
             await saveToCloud();
             renderTasks();
         }
@@ -561,6 +578,7 @@
                 dept: selectedDepts,
                 time,
                 completed: false,
+                status: 'active',
                 startedAt: null,
                 completedAt: null
             });
