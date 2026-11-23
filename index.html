@@ -143,11 +143,12 @@
 
     </main>
 
-    <!-- Modal -->
+    <!-- Modal (Create / Edit Task) -->
     <div id="task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
         <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-lg w-full shadow-2xl">
-            <h3 class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
-            <form onsubmit="handleCreateTask(event)" class="space-y-4">
+            <h3 id="task-modal-title" class="text-lg font-bold text-slate-100 mb-4">Новая задача</h3>
+            <form onsubmit="handleSaveTask(event)" class="space-y-4">
+                <input type="hidden" id="editing-task-id" value="">
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Текст задачи</label>
                     <input type="text" id="task-text" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none">
@@ -165,7 +166,7 @@
                 </div>
                 <div class="flex justify-end space-x-3 pt-2">
                     <button type="button" onclick="closeModal()" class="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg text-sm">Отмена</button>
-                    <button type="submit" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
+                    <button type="submit" id="task-submit-btn" class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium">Создать</button>
                 </div>
             </form>
         </div>
@@ -441,6 +442,9 @@
         }
 
         function getTaskOutcome(task, nowMs) {
+            if (task.status === 'cancelled') {
+                return 'cancelled';
+            }
             if (task.completed) {
                 return task.status === 'failed' ? 'failed' : 'success';
             }
@@ -450,8 +454,29 @@
             return 'active';
         }
 
+        function renderAdminTaskActions(task, outcome) {
+            const cancelBtn = outcome !== 'cancelled' && outcome !== 'success'
+                ? `<button onclick="cancelTask('${task.id}')" class="bg-amber-700/80 hover:bg-amber-600 text-amber-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Отменить</button>`
+                : '';
+            return `
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <button onclick="openEditModal('${task.id}')" class="bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Редактировать</button>
+                    ${cancelBtn}
+                    <button onclick="deleteTask('${task.id}')" class="bg-red-900/80 hover:bg-red-700 text-red-200 border border-red-700/60 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Удалить</button>
+                </div>
+            `;
+        }
+
         function renderTaskAction(task, nowMs) {
             const outcome = getTaskOutcome(task, nowMs);
+
+            if (currentRole === 'admin') {
+                return renderAdminTaskActions(task, outcome);
+            }
+
+            if (outcome === 'cancelled') {
+                return `<span class="text-slate-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 whitespace-nowrap">Отменена</span>`;
+            }
 
             if (outcome === 'success') {
                 return `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800 whitespace-nowrap">✓ Успешно</span>`;
@@ -511,12 +536,19 @@
                 const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
                 const deptBadges = depts.map(d => `<span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${d.replace('_', ' ')}</span>`).join(' ');
                 const outcome = getTaskOutcome(t, nowMs);
-                const isClosed = outcome === 'success' || outcome === 'expired' || outcome === 'failed';
-                const statusBadge = (outcome === 'active' && t.startedAt)
-                    ? `<span class="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">В работе</span>`
-                    : (outcome === 'expired' || outcome === 'failed')
-                        ? `<span class="text-xs bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Просрочена</span>`
-                        : '';
+                const isClosed = outcome === 'success' || outcome === 'expired' || outcome === 'failed' || outcome === 'cancelled';
+
+                let statusBadge = '';
+                if (outcome === 'cancelled') {
+                    statusBadge = `<span class="text-xs bg-slate-900 text-slate-400 border border-slate-700 px-2 py-0.5 rounded">Отменена</span>`;
+                } else if (outcome === 'success') {
+                    statusBadge = `<span class="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">Успешно</span>`;
+                } else if (outcome === 'active' && t.startedAt) {
+                    statusBadge = `<span class="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">В работе</span>`;
+                } else if (outcome === 'expired' || outcome === 'failed') {
+                    statusBadge = `<span class="text-xs bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Просрочена</span>`;
+                }
+
                 return `
                     <div class="bg-slate-800 p-4 rounded-xl border ${outcome === 'expired' || outcome === 'failed' ? 'border-red-800/60' : 'border-slate-700'} flex justify-between items-center gap-3 ${isClosed ? 'opacity-75' : ''}">
                         <div>
@@ -525,7 +557,7 @@
                                 ${deptBadges}
                                 ${statusBadge}
                             </div>
-                            <p class="font-medium text-slate-100 ${outcome === 'success' ? 'line-through text-slate-400' : ''}">${t.text}</p>
+                            <p class="font-medium text-slate-100 ${outcome === 'success' || outcome === 'cancelled' ? 'line-through text-slate-400' : ''}">${t.text}</p>
                         </div>
                         <div>${renderTaskAction(t, nowMs)}</div>
                     </div>
@@ -534,18 +566,18 @@
         }
 
         async function startTask(id) {
-            if (currentRole === 'denied') return;
+            if (currentRole !== 'user') return;
             const startedNow = Date.now();
-            tasks = tasks.map(t => (t.id === id && !t.startedAt && !t.completed) ? { ...t, startedAt: startedNow } : t);
+            tasks = tasks.map(t => (t.id === id && !t.startedAt && !t.completed && t.status !== 'cancelled') ? { ...t, startedAt: startedNow } : t);
             renderTasks();
             await saveToCloud();
         }
 
         async function markCompleted(id) {
-            if (currentRole === 'denied') return;
+            if (currentRole !== 'user') return;
             const nowMs = Date.now();
             const target = tasks.find(t => t.id === id);
-            if (!target || !target.startedAt || target.completed) return;
+            if (!target || !target.startedAt || target.completed || target.status === 'cancelled') return;
             const elapsed = nowMs - target.startedAt;
             if (elapsed < MIN_WORK_MS) return;
 
@@ -560,40 +592,99 @@
             renderTasks();
         }
 
-        async function handleCreateTask(e) {
+        async function cancelTask(id) {
+            if (currentRole !== 'admin') return;
+            tasks = tasks.map(t => t.id === id ? {
+                ...t,
+                completed: true,
+                status: 'cancelled'
+            } : t);
+            renderTasks();
+            await saveToCloud();
+        }
+
+        async function deleteTask(id) {
+            if (currentRole !== 'admin') return;
+            if (!confirm('Удалить эту задачу?')) return;
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+            await saveToCloud();
+        }
+
+        function openModal() {
+            if (currentRole !== 'admin') return;
+            document.getElementById('editing-task-id').value = '';
+            document.getElementById('task-modal-title').innerText = 'Новая задача';
+            document.getElementById('task-submit-btn').innerText = 'Создать';
+            document.getElementById('task-text').value = '';
+            document.getElementById('task-time').value = '';
+            toggleSelectAll(false);
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function openEditModal(id) {
+            if (currentRole !== 'admin') return;
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('editing-task-id').value = task.id;
+            document.getElementById('task-modal-title').innerText = 'Редактировать задачу';
+            document.getElementById('task-submit-btn').innerText = 'Сохранить';
+            document.getElementById('task-text').value = task.text || '';
+            document.getElementById('task-time').value = task.time || '';
+
+            const selectedSet = new Set(Array.isArray(task.dept) ? task.dept : [task.dept]);
+            document.querySelectorAll('input[name="task-dept"]').forEach(cb => {
+                cb.checked = selectedSet.has(cb.value);
+            });
+
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('editing-task-id').value = '';
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        async function handleSaveTask(e) {
             e.preventDefault();
             if (currentRole !== 'admin') return;
-            const text = document.getElementById('task-text').value;
+            const editId = document.getElementById('editing-task-id').value;
+            const text = document.getElementById('task-text').value.trim();
             const time = document.getElementById('task-time').value;
             const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
 
-            if (selectedDepts.length === 0) {
-                alert('Выберите хотя бы одного получателя!');
+            if (!text || !time || selectedDepts.length === 0) {
+                alert('Заполните текст, время и выберите хотя бы одного получателя!');
                 return;
             }
 
-            tasks.unshift({
-                id: Date.now().toString(),
-                text,
-                dept: selectedDepts,
-                time,
-                completed: false,
-                status: 'active',
-                startedAt: null,
-                completedAt: null
-            });
+            if (editId) {
+                tasks = tasks.map(t => t.id === editId ? {
+                    ...t,
+                    text,
+                    dept: selectedDepts,
+                    time
+                } : t);
+            } else {
+                tasks.unshift({
+                    id: Date.now().toString(),
+                    text,
+                    dept: selectedDepts,
+                    time,
+                    completed: false,
+                    status: 'active',
+                    startedAt: null,
+                    completedAt: null
+                });
+            }
+
             await saveToCloud();
             renderTasks();
             closeModal();
             e.target.reset();
             toggleSelectAll(false);
         }
-
-        function openModal() {
-            if (currentRole !== 'admin') return;
-            document.getElementById('task-modal').classList.remove('hidden');
-        }
-        function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
         function renderAudit() {
             if (currentRole === 'denied') return;
@@ -757,18 +848,15 @@
         }
 
         function checkAlarms(now) {
-            if (currentRole === 'denied' || activeAlarmTask) return;
+            if (currentRole !== 'user' || !currentDept || activeAlarmTask) return;
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             
             tasks.forEach(task => {
-                if (!task.completed && task.time === currentHM && !acknowledgedTaskIds.has(task.id)) {
+                if (!task.completed && task.status !== 'cancelled' && task.time === currentHM && !acknowledgedTaskIds.has(task.id)) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
-                    
-                    if (currentRole === 'user' && currentDept) {
-                        const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                        if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
-                            triggerAlarm(task);
-                        }
+                    const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                    if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
+                        triggerAlarm(task);
                     }
                 }
             });
