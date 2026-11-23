@@ -53,7 +53,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="max-w-6xl mx-auto w-full p-4 flex-grow">
+    <main id="app-main" class="max-w-6xl mx-auto w-full p-4 flex-grow">
         
         <!-- TAB 1: TASKS -->
         <div id="tab-tasks" class="space-y-4">
@@ -135,6 +135,12 @@
             </div>
         </div>
 
+        <!-- Access Denied Screen -->
+        <div id="access-denied" class="hidden max-w-md mx-auto mt-12 bg-slate-800 border border-red-800/70 rounded-2xl p-6 text-center shadow-xl">
+            <h2 class="text-xl font-bold text-red-400 mb-2">Доступ ограничен</h2>
+            <p class="text-sm text-slate-300">Перейдите по вашей персональной ссылке с ключом доступа, выданной руководителем сети.</p>
+        </div>
+
     </main>
 
     <!-- Modal -->
@@ -178,13 +184,55 @@
     <script>
         const BIN_ID = '6ad86195ac6210605a44aedd';
         const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
-        
+        const STORAGE_KEY_SESSION = 'zammler_session_v1';
+
+        // Уникальные ключи доступа: ключ -> роль ('admin' или код склада/должности)
+        const ACCESS_KEYS = {
+            'adm_zml_9041': 'admin',
+
+            'pp7_4821': 'PP7',
+            'pp10_7319': 'PP10',
+            'pp11_2954': 'PP11',
+            'pp12_6183': 'PP12',
+            'pp13_8507': 'PP13',
+            'pp15_3746': 'PP15',
+            'pp16_9260': 'PP16',
+            'pp21_5418': 'PP21',
+            'pp24_1692': 'PP24',
+            'pp30_8035': 'PP30',
+            'pp32_4579': 'PP32',
+
+            'ro_pp7_1101': 'RO_PP7',
+            'ro_pp10_1102': 'RO_PP10',
+            'ro_pp11_1103': 'RO_PP11',
+            'ro_pp12_1104': 'RO_PP12',
+            'ro_pp13_1105': 'RO_PP13',
+            'ro_pp15_1106': 'RO_PP15',
+            'ro_pp16_1107': 'RO_PP16',
+            'ro_pp21_1108': 'RO_PP21',
+            'ro_pp24_1109': 'RO_PP24',
+            'ro_pp30_1110': 'RO_PP30',
+            'ro_pp32_1111': 'RO_PP32',
+
+            'sp_pp7_2201': 'SP_PP7',
+            'sp_pp10_2202': 'SP_PP10',
+            'sp_pp11_2203': 'SP_PP11',
+            'sp_pp12_2204': 'SP_PP12',
+            'sp_pp13_2205': 'SP_PP13',
+            'sp_pp15_2206': 'SP_PP15',
+            'sp_pp16_2207': 'SP_PP16',
+            'sp_pp21_2208': 'SP_PP21',
+            'sp_pp24_2209': 'SP_PP24',
+            'sp_pp30_2210': 'SP_PP30',
+            'sp_pp32_2211': 'SP_PP32'
+        };
+
         const warehouses = ["PP7", "PP10", "PP11", "PP12", "PP13", "PP15", "PP16", "PP21", "PP24", "PP30", "PP32"];
         let tasks = [];
         let auditData = {};
         let prodData = {};
         
-        let currentRole = 'admin';
+        let currentRole = 'denied';
         let currentDept = null;
         let activeAlarmTask = null;
         let auditChartInstance = null;
@@ -242,53 +290,81 @@
             } catch(e) { console.error('Cloud save error', e); }
         }
 
-        function initRole() {
+        function resolveSession() {
             const params = new URLSearchParams(window.location.search);
-            const deptParam = params.get('dept');
+            const keyParam = params.get('key');
+
+            if (keyParam !== null) {
+                const cleanKey = keyParam.trim();
+                if (ACCESS_KEYS[cleanKey]) {
+                    localStorage.setItem(STORAGE_KEY_SESSION, cleanKey);
+                    return ACCESS_KEYS[cleanKey];
+                } else {
+                    localStorage.removeItem(STORAGE_KEY_SESSION);
+                    return null;
+                }
+            }
+
+            const savedKey = localStorage.getItem(STORAGE_KEY_SESSION);
+            if (savedKey && ACCESS_KEYS[savedKey]) {
+                return ACCESS_KEYS[savedKey];
+            }
+
+            return null;
+        }
+
+        function setTabsVisibility(visible) {
+            const nav = document.querySelector('nav');
+            const tabTasks = document.getElementById('tab-tasks');
+            const deniedEl = document.getElementById('access-denied');
+            if (nav) nav.classList.toggle('hidden', !visible);
+            if (tabTasks) tabTasks.classList.toggle('hidden', !visible);
+            if (deniedEl) deniedEl.classList.toggle('hidden', visible);
+        }
+
+        function initRole() {
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            const resolvedTarget = resolveSession();
             const roleBadge = document.getElementById('role-badge');
             const adminPanel = document.getElementById('admin-panel');
             const auditControls = document.getElementById('audit-controls');
             const prodControls = document.getElementById('prod-controls');
+            const viewTitle = document.getElementById('view-title');
 
-            if (deptParam !== null) {
-                if (deptParam.trim() !== '') {
-                    localStorage.setItem('zammler_dept', deptParam.trim());
-                } else {
-                    localStorage.removeItem('zammler_dept');
-                }
+            if (!resolvedTarget) {
+                currentRole = 'denied';
+                currentDept = null;
+                setTabsVisibility(false);
+                if (roleBadge) roleBadge.innerHTML = `<span class="text-red-400 font-semibold">Нет ключа доступа</span>`;
+                return;
             }
 
-            const activeDept = deptParam !== null ? (deptParam.trim() !== '' ? deptParam.trim() : null) : localStorage.getItem('zammler_dept');
+            setTabsVisibility(true);
 
-            if (activeDept && activeDept.trim() !== '') {
-                currentRole = 'user';
-                currentDept = decodeURIComponent(activeDept).replace(/\s+/g, '_');
-                const formattedName = currentDept.replace('_', ' ');
-                
-                if (adminPanel) adminPanel.classList.add('hidden');
-                if (auditControls) auditControls.classList.add('hidden');
-                if (prodControls) prodControls.classList.add('hidden');
-
-                if(roleBadge) roleBadge.innerHTML = `<span>Должность: <b>${formattedName}</b></span>`;
-                const viewTitle = document.getElementById('view-title');
-                if(viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
-            } else {
+            if (resolvedTarget === 'admin') {
                 currentRole = 'admin';
                 currentDept = null;
-                
                 if (adminPanel) adminPanel.classList.remove('hidden');
                 if (auditControls) auditControls.classList.remove('hidden');
                 if (prodControls) prodControls.classList.remove('hidden');
-
-                if(roleBadge) roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
-                const viewTitle = document.getElementById('view-title');
-                if(viewTitle) viewTitle.innerText = `Все задачи сети (11 складов)`;
+                if (roleBadge) roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
+                if (viewTitle) viewTitle.innerText = `Все задачи сети (11 складов)`;
+            } else {
+                currentRole = 'user';
+                currentDept = resolvedTarget;
+                const formattedName = currentDept.replace('_', ' ');
+                if (adminPanel) adminPanel.classList.add('hidden');
+                if (auditControls) auditControls.classList.add('hidden');
+                if (prodControls) prodControls.classList.add('hidden');
+                if (roleBadge) roleBadge.innerHTML = `<span>Склад: <b>${formattedName}</b></span>`;
+                if (viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
             }
+
             renderCheckboxes();
             fetchFromCloud();
             requestNotificationPermission();
-            setInterval(updateClock, 1000);
-            updateClock();
         }
 
         function renderCheckboxes() {
@@ -326,6 +402,7 @@
         }
 
         function switchTab(tab) {
+            if (currentRole === 'denied') return;
             ['tasks', 'audit', 'productivity'].forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const btn = document.getElementById(`tab-btn-${t}`);
@@ -351,6 +428,7 @@
         }
 
         function renderTasks() {
+            if (currentRole === 'denied') return;
             const container = document.getElementById('tasks-container');
             if(!container) return;
             let filtered = tasks;
@@ -384,6 +462,7 @@
         }
 
         async function markCompleted(id) {
+            if (currentRole === 'denied') return;
             tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
             await saveToCloud();
             renderTasks();
@@ -391,6 +470,7 @@
 
         async function handleCreateTask(e) {
             e.preventDefault();
+            if (currentRole !== 'admin') return;
             const text = document.getElementById('task-text').value;
             const time = document.getElementById('task-time').value;
             const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
@@ -408,10 +488,14 @@
             toggleSelectAll(false);
         }
 
-        function openModal() { document.getElementById('task-modal').classList.remove('hidden'); }
+        function openModal() {
+            if (currentRole !== 'admin') return;
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
         function closeModal() { document.getElementById('task-modal').classList.add('hidden'); }
 
         function renderAudit() {
+            if (currentRole === 'denied') return;
             const tbody = document.getElementById('audit-table-body');
             const monthEl = document.getElementById('audit-month');
             if(!tbody || !monthEl) return;
@@ -459,6 +543,7 @@
         }
 
         function renderAuditChart() {
+            if (currentRole === 'denied') return;
             const canvas = document.getElementById('auditChart');
             if(!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -490,6 +575,7 @@
         }
 
         function renderProd() {
+            if (currentRole === 'denied') return;
             const tbody = document.getElementById('prod-table-body');
             if(!tbody) return;
             let list = warehouses;
@@ -539,6 +625,7 @@
         }
 
         function renderProdChart() {
+            if (currentRole === 'denied') return;
             const canvas = document.getElementById('prodChart');
             if(!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -569,7 +656,7 @@
         }
 
         function checkAlarms(now) {
-            if (activeAlarmTask) return;
+            if (currentRole === 'denied' || activeAlarmTask) return;
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             
             tasks.forEach(task => {
@@ -606,11 +693,11 @@
         }
 
         function acknowledgeAlarm() {
+            activeAlarmTask = null;
+            const overlayEl = document.getElementById('alarm-overlay');
+            if (overlayEl) overlayEl.classList.add('hidden');
             alarmAudio.pause();
             alarmAudio.currentTime = 0;
-            const overlayEl = document.getElementById('alarm-overlay');
-            if(overlayEl) overlayEl.classList.add('hidden');
-            activeAlarmTask = null;
         }
     </script>
 </body>
