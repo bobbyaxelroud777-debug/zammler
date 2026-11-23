@@ -434,13 +434,6 @@
             }
         }
 
-        function formatDurationMMSS(ms) {
-            const totalSec = Math.max(0, Math.floor(ms / 1000));
-            const mins = Math.floor(totalSec / 60);
-            const secs = totalSec % 60;
-            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-        }
-
         function getTaskOutcome(task, nowMs) {
             if (task.status === 'cancelled') {
                 return 'cancelled';
@@ -491,27 +484,18 @@
             }
 
             const elapsed = nowMs - task.startedAt;
-            const remainingToUnlock = MIN_WORK_MS - elapsed;
-            const remainingToDeadline = MAX_WORK_MS - elapsed;
-
-            if (remainingToUnlock > 0) {
+            if (elapsed < MIN_WORK_MS) {
                 return `
-                    <div class="flex flex-col items-end space-y-1">
-                        <button disabled class="bg-slate-700 text-slate-400 text-xs px-3 py-2 rounded-lg font-medium cursor-not-allowed whitespace-nowrap">
-                            Выполнить (через ${formatDurationMMSS(remainingToUnlock)})
-                        </button>
-                        <span class="text-[11px] text-slate-400">Окно 30 мин: ост. ${formatDurationMMSS(remainingToDeadline)}</span>
-                    </div>
+                    <button disabled class="bg-slate-700 text-slate-400 text-xs px-3.5 py-2 rounded-lg font-medium cursor-not-allowed whitespace-nowrap">
+                        Выполнить
+                    </button>
                 `;
             }
 
             return `
-                <div class="flex flex-col items-end space-y-1">
-                    <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
-                        Выполнить
-                    </button>
-                    <span class="text-[11px] text-teal-300">Ост. времени: ${formatDurationMMSS(remainingToDeadline)}</span>
-                </div>
+                <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                    Выполнить
+                </button>
             `;
         }
 
