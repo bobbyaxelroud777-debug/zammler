@@ -10,6 +10,7 @@
     <meta name="theme-color" content="#0f172a">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <style>
         @keyframes pulse-red {
             0%, 100% { background-color: #0f172a; }
@@ -184,7 +185,8 @@
 
     <script>
         const BIN_ID = '6ad86195ac6210605a44aedd';
-        const MASTER_KEY = '\$2a\$10\$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
+        const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
+        const ONESIGNAL_APP_ID = '3f424db7-456f-4031-bd72-29a44e5101a2';
         const STORAGE_KEY_SESSION = 'zammler_session_v1';
 
         const MIN_WORK_MS = 5 * 60 * 1000;   // 5 минут до разблокировки кнопки "Выполнить"
@@ -210,4 +212,715 @@
             'ro_pp11_1103': 'RO_PP11',
             'ro_pp12_1104': 'RO_PP12',
             'ro_pp13_1105': 'RO_PP13',
-            'ro_pp15_1106': 'RO_PP1
+            'ro_pp15_1106': 'RO_PP15',
+            'ro_pp16_1107': 'RO_PP16',
+            'ro_pp21_1108': 'RO_PP21',
+            'ro_pp24_1109': 'RO_PP24',
+            'ro_pp30_1110': 'RO_PP30',
+            'ro_pp32_1111': 'RO_PP32',
+
+            'sp_pp7_2201': 'SP_PP7',
+            'sp_pp10_2202': 'SP_PP10',
+            'sp_pp11_2203': 'SP_PP11',
+            'sp_pp12_2204': 'SP_PP12',
+            'sp_pp13_2205': 'SP_PP13',
+            'sp_pp15_2206': 'SP_PP15',
+            'sp_pp16_2207': 'SP_PP16',
+            'sp_pp21_2208': 'SP_PP21',
+            'sp_pp24_2209': 'SP_PP24',
+            'sp_pp30_2210': 'SP_PP30',
+            'sp_pp32_2211': 'SP_PP32'
+        };
+
+        const warehouses = ["PP7", "PP10", "PP11", "PP12", "PP13", "PP15", "PP16", "PP21", "PP24", "PP30", "PP32"];
+        let tasks = [];
+        let auditData = {};
+        let prodData = {};
+        
+        let currentRole = 'denied';
+        let currentDept = null;
+        let activeAlarmTask = null;
+        let acknowledgedTaskIds = new Set();
+        let auditChartInstance = null;
+        let prodChartInstance = null;
+        let oneSignalInitialized = false;
+
+        let alarmAudio = new Audio('alarm.mp3');
+        alarmAudio.loop = true;
+
+        document.addEventListener('click', () => {
+            if (alarmAudio.paused) {
+                alarmAudio.play().then(() => {
+                    alarmAudio.pause();
+                    alarmAudio.currentTime = 0;
+                }).catch(() => {});
+            }
+        }, { once: true });
+
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    console.log('Статус уведомлений:', permission);
+                });
+            }
+        }
+
+        function initOneSignalForRole(role, dept) {
+            if (!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID === 'YOUR_ONESIGNAL_APP_ID') return;
+            window.OneSignalDeferred = window.OneSignalDeferred || [];
+            OneSignalDeferred.push(async function(OneSignal) {
+                try {
+                    if (!oneSignalInitialized) {
+                        await OneSignal.init({
+                            appId: ONESIGNAL_APP_ID,
+                            serviceWorkerPath: 'sw.js',
+                            allowLocalhostAsSecureOrigin: true
+                        });
+                        oneSignalInitialized = true;
+                    }
+                    await OneSignal.Notifications.requestPermission();
+                    if (role === 'user' && dept) {
+                        const baseWh = dept.includes('_') ? dept.split('_')[1] : dept;
+                        await OneSignal.User.addTags({
+                            role: 'user',
+                            dept: dept,
+                            warehouse: baseWh
+                        });
+                    } else if (role === 'admin') {
+                        await OneSignal.User.addTags({
+                            role: 'admin',
+                            dept: 'ALL',
+                            warehouse: 'ALL'
+                        });
+                    }
+                } catch (err) {
+                    console.error('OneSignal init/tag error:', err);
+                }
+            });
+        }
+
+        async function fetchFromCloud() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                    headers: { 'X-Master-Key': MASTER_KEY }
+                });
+                if(res.ok) {
+                    const json = await res.json();
+                    if(json.record) {
+                        tasks = json.record.tasks || [];
+                        auditData = json.record.audit || {};
+                        prodData = json.record.prod || {};
+                    }
+                }
+            } catch(e) { console.error('Cloud load error', e); }
+            renderTasks();
+            renderAudit();
+            renderProd();
+            checkAlarms(new Date());
+        }
+
+        async function saveToCloud() {
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ tasks, audit: auditData, prod: prodData })
+                });
+            } catch(e) { console.error('Cloud save error', e); }
+        }
+
+        function resolveSession() {
+            const params = new URLSearchParams(window.location.search);
+            const keyParam = params.get('key');
+
+            if (keyParam !== null) {
+                const cleanKey = keyParam.trim();
+                if (ACCESS_KEYS[cleanKey]) {
+                    localStorage.setItem(STORAGE_KEY_SESSION, cleanKey);
+                    return ACCESS_KEYS[cleanKey];
+                } else {
+                    localStorage.removeItem(STORAGE_KEY_SESSION);
+                    return null;
+                }
+            }
+
+            const savedKey = localStorage.getItem(STORAGE_KEY_SESSION);
+            if (savedKey && ACCESS_KEYS[savedKey]) {
+                return ACCESS_KEYS[savedKey];
+            }
+
+            return null;
+        }
+
+        function setTabsVisibility(visible) {
+            const nav = document.querySelector('nav');
+            const tabTasks = document.getElementById('tab-tasks');
+            const deniedEl = document.getElementById('access-denied');
+            if (nav) nav.classList.toggle('hidden', !visible);
+            if (tabTasks) tabTasks.classList.toggle('hidden', !visible);
+            if (deniedEl) deniedEl.classList.toggle('hidden', visible);
+        }
+
+        function initRole() {
+            setInterval(updateClock, 1000);
+            updateClock();
+
+            const resolvedTarget = resolveSession();
+            const roleBadge = document.getElementById('role-badge');
+            const adminPanel = document.getElementById('admin-panel');
+            const auditControls = document.getElementById('audit-controls');
+            const prodControls = document.getElementById('prod-controls');
+            const viewTitle = document.getElementById('view-title');
+
+            if (!resolvedTarget) {
+                currentRole = 'denied';
+                currentDept = null;
+                setTabsVisibility(false);
+                if (roleBadge) roleBadge.innerHTML = `<span class="text-red-400 font-semibold">Нет ключа доступа</span>`;
+                return;
+            }
+
+            setTabsVisibility(true);
+
+            if (resolvedTarget === 'admin') {
+                currentRole = 'admin';
+                currentDept = null;
+                if (adminPanel) adminPanel.classList.remove('hidden');
+                if (auditControls) auditControls.classList.remove('hidden');
+                if (prodControls) prodControls.classList.remove('hidden');
+                if (roleBadge) roleBadge.innerHTML = `<span>Режим: <b>Администратор</b></span>`;
+                if (viewTitle) viewTitle.innerText = `Все задачи сети (11 складов)`;
+            } else {
+                currentRole = 'user';
+                currentDept = resolvedTarget;
+                const formattedName = currentDept.replace('_', ' ');
+                if (adminPanel) adminPanel.classList.add('hidden');
+                if (auditControls) auditControls.classList.add('hidden');
+                if (prodControls) prodControls.classList.add('hidden');
+                if (roleBadge) roleBadge.innerHTML = `<span>Склад: <b>${formattedName}</b></span>`;
+                if (viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
+            }
+
+            renderCheckboxes();
+            fetchFromCloud();
+            requestNotificationPermission();
+            initOneSignalForRole(currentRole, currentDept);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && currentRole !== 'denied') {
+                    fetchFromCloud();
+                    updateClock();
+                }
+            });
+        }
+
+        function renderCheckboxes() {
+            const container = document.getElementById('dept-checkboxes');
+            if(!container) return;
+            let html = `<div class="font-bold text-teal-400 mb-1 text-xs uppercase tracking-wider">Склады</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
+                    <span class="text-slate-200">${wh}</span>
+                </label>
+            `).join('');
+
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только РО</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="RO_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
+                    <span class="text-slate-200">РО ${wh}</span>
+                </label>
+            `).join('');
+
+            html += `<div class="font-bold text-teal-400 mt-3 mb-1 text-xs uppercase tracking-wider">Только СП</div>`;
+            html += warehouses.map(wh => `
+                <label class="flex items-center space-x-2 p-1 hover:bg-slate-800 rounded cursor-pointer">
+                    <input type="checkbox" name="task-dept" value="SP_${wh}" class="rounded bg-slate-800 border-slate-600 text-teal-600">
+                    <span class="text-slate-200">СП ${wh}</span>
+                </label>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function toggleSelectAll(select) {
+            document.querySelectorAll('input[name="task-dept"]').forEach(cb => cb.checked = select);
+        }
+
+        function switchTab(tab) {
+            if (currentRole === 'denied') return;
+            ['tasks', 'audit', 'productivity'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.className = "px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors";
+            });
+            const targetEl = document.getElementById(`tab-${tab}`);
+            const targetBtn = document.getElementById(`tab-btn-${tab}`);
+            if(targetEl) targetEl.classList.remove('hidden');
+            if(targetBtn) targetBtn.className = "px-4 py-2 rounded-lg text-sm font-medium bg-teal-600 text-white transition-colors";
+            
+            if(tab === 'audit') renderAuditChart();
+            if(tab === 'productivity') renderProdChart();
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('clock');
+            if(clockEl) {
+                clockEl.innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+            }
+            checkAlarms(now);
+            if (currentRole !== 'denied' && tasks.length > 0) {
+                renderTasks();
+            }
+        }
+
+        function getTaskOutcome(task, nowMs) {
+            if (task.status === 'cancelled') {
+                return 'cancelled';
+            }
+            if (task.completed) {
+                return task.status === 'failed' ? 'failed' : 'success';
+            }
+            if (task.startedAt && (nowMs - task.startedAt) > MAX_WORK_MS) {
+                return 'expired';
+            }
+            return 'active';
+        }
+
+        function renderAdminTaskActions(task, outcome) {
+            const cancelBtn = outcome !== 'cancelled' && outcome !== 'success'
+                ? `<button onclick="cancelTask('${task.id}')" class="bg-amber-700/80 hover:bg-amber-600 text-amber-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Отменить</button>`
+                : '';
+            return `
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <button onclick="openEditModal('${task.id}')" class="bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Редактировать</button>
+                    ${cancelBtn}
+                    <button onclick="deleteTask('${task.id}')" class="bg-red-900/80 hover:bg-red-700 text-red-200 border border-red-700/60 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors whitespace-nowrap">Удалить</button>
+                </div>
+            `;
+        }
+
+        function renderTaskAction(task, nowMs) {
+            const outcome = getTaskOutcome(task, nowMs);
+
+            if (currentRole === 'admin') {
+                return renderAdminTaskActions(task, outcome);
+            }
+
+            if (outcome === 'cancelled') {
+                return `<span class="text-slate-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 whitespace-nowrap">Отменена</span>`;
+            }
+
+            if (outcome === 'success') {
+                return `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800 whitespace-nowrap">✓ Успешно</span>`;
+            }
+
+            if (outcome === 'expired' || outcome === 'failed') {
+                return `<span class="text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-red-950 border border-red-800 whitespace-nowrap">✕ Просрочена</span>`;
+            }
+
+            if (!task.startedAt) {
+                return `<button onclick="startTask('${task.id}')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3.5 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap">Приступить к задаче</button>`;
+            }
+
+            const elapsed = nowMs - task.startedAt;
+            if (elapsed < MIN_WORK_MS) {
+                return `
+                    <button disabled class="bg-slate-700 text-slate-400 text-xs px-3.5 py-2 rounded-lg font-medium cursor-not-allowed whitespace-nowrap">
+                        Выполнить
+                    </button>
+                `;
+            }
+
+            return `
+                <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                    Выполнить
+                </button>
+            `;
+        }
+
+        function renderTasks() {
+            if (currentRole === 'denied') return;
+            const container = document.getElementById('tasks-container');
+            if(!container) return;
+            let filtered = tasks;
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                filtered = tasks.filter(t => {
+                    const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
+                    return depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL');
+                });
+            }
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
+                return;
+            }
+            const nowMs = Date.now();
+            container.innerHTML = filtered.map(t => {
+                const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
+                const deptBadges = depts.map(d => `<span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${d.replace('_', ' ')}</span>`).join(' ');
+                const outcome = getTaskOutcome(t, nowMs);
+                const isClosed = outcome === 'success' || outcome === 'expired' || outcome === 'failed' || outcome === 'cancelled';
+
+                let statusBadge = '';
+                if (outcome === 'cancelled') {
+                    statusBadge = `<span class="text-xs bg-slate-900 text-slate-400 border border-slate-700 px-2 py-0.5 rounded">Отменена</span>`;
+                } else if (outcome === 'success') {
+                    statusBadge = `<span class="text-xs bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded">Успешно</span>`;
+                } else if (outcome === 'active' && t.startedAt) {
+                    statusBadge = `<span class="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">В работе</span>`;
+                } else if (outcome === 'expired' || outcome === 'failed') {
+                    statusBadge = `<span class="text-xs bg-red-950 text-red-300 border border-red-800 px-2 py-0.5 rounded">Просрочена</span>`;
+                }
+
+                return `
+                    <div class="bg-slate-800 p-4 rounded-xl border ${outcome === 'expired' || outcome === 'failed' ? 'border-red-800/60' : 'border-slate-700'} flex justify-between items-center gap-3 ${isClosed ? 'opacity-75' : ''}">
+                        <div>
+                            <div class="flex items-center space-x-2 mb-1 flex-wrap gap-1">
+                                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
+                                ${deptBadges}
+                                ${statusBadge}
+                            </div>
+                            <p class="font-medium text-slate-100 ${outcome === 'success' || outcome === 'cancelled' ? 'line-through text-slate-400' : ''}">${t.text}</p>
+                        </div>
+                        <div>${renderTaskAction(t, nowMs)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function startTask(id) {
+            if (currentRole !== 'user') return;
+            const startedNow = Date.now();
+            tasks = tasks.map(t => (t.id === id && !t.startedAt && !t.completed && t.status !== 'cancelled') ? { ...t, startedAt: startedNow } : t);
+            renderTasks();
+            await saveToCloud();
+        }
+
+        async function markCompleted(id) {
+            if (currentRole !== 'user') return;
+            const nowMs = Date.now();
+            const target = tasks.find(t => t.id === id);
+            if (!target || !target.startedAt || target.completed || target.status === 'cancelled') return;
+            const elapsed = nowMs - target.startedAt;
+            if (elapsed < MIN_WORK_MS) return;
+
+            const isSuccess = elapsed <= MAX_WORK_MS;
+            tasks = tasks.map(t => t.id === id ? {
+                ...t,
+                completed: true,
+                status: isSuccess ? 'success' : 'failed',
+                completedAt: nowMs
+            } : t);
+            await saveToCloud();
+            renderTasks();
+        }
+
+        async function cancelTask(id) {
+            if (currentRole !== 'admin') return;
+            tasks = tasks.map(t => t.id === id ? {
+                ...t,
+                completed: true,
+                status: 'cancelled'
+            } : t);
+            renderTasks();
+            await saveToCloud();
+        }
+
+        async function deleteTask(id) {
+            if (currentRole !== 'admin') return;
+            if (!confirm('Удалить эту задачу?')) return;
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+            await saveToCloud();
+        }
+
+        function openModal() {
+            if (currentRole !== 'admin') return;
+            document.getElementById('editing-task-id').value = '';
+            document.getElementById('task-modal-title').innerText = 'Новая задача';
+            document.getElementById('task-submit-btn').innerText = 'Создать';
+            document.getElementById('task-text').value = '';
+            document.getElementById('task-time').value = '';
+            toggleSelectAll(false);
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function openEditModal(id) {
+            if (currentRole !== 'admin') return;
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+
+            document.getElementById('editing-task-id').value = task.id;
+            document.getElementById('task-modal-title').innerText = 'Редактировать задачу';
+            document.getElementById('task-submit-btn').innerText = 'Сохранить';
+            document.getElementById('task-text').value = task.text || '';
+            document.getElementById('task-time').value = task.time || '';
+
+            const selectedSet = new Set(Array.isArray(task.dept) ? task.dept : [task.dept]);
+            document.querySelectorAll('input[name="task-dept"]').forEach(cb => {
+                cb.checked = selectedSet.has(cb.value);
+            });
+
+            document.getElementById('task-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('editing-task-id').value = '';
+            document.getElementById('task-modal').classList.add('hidden');
+        }
+
+        async function handleSaveTask(e) {
+            e.preventDefault();
+            if (currentRole !== 'admin') return;
+            const editId = document.getElementById('editing-task-id').value;
+            const text = document.getElementById('task-text').value.trim();
+            const time = document.getElementById('task-time').value;
+            const selectedDepts = Array.from(document.querySelectorAll('input[name="task-dept"]:checked')).map(cb => cb.value);
+
+            if (!text || !time || selectedDepts.length === 0) {
+                alert('Заполните текст, время и выберите хотя бы одного получателя!');
+                return;
+            }
+
+            if (editId) {
+                tasks = tasks.map(t => t.id === editId ? {
+                    ...t,
+                    text,
+                    dept: selectedDepts,
+                    time
+                } : t);
+            } else {
+                tasks.unshift({
+                    id: Date.now().toString(),
+                    text,
+                    dept: selectedDepts,
+                    time,
+                    completed: false,
+                    status: 'active',
+                    startedAt: null,
+                    completedAt: null
+                });
+            }
+
+            await saveToCloud();
+            renderTasks();
+            closeModal();
+            e.target.reset();
+            toggleSelectAll(false);
+        }
+
+        function renderAudit() {
+            if (currentRole === 'denied') return;
+            const tbody = document.getElementById('audit-table-body');
+            const monthEl = document.getElementById('audit-month');
+            if(!tbody || !monthEl) return;
+            const month = monthEl.value;
+            let list = warehouses;
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                list = [baseWarehouse];
+            }
+            const isDisabled = currentRole === 'user' ? 'disabled' : '';
+
+            tbody.innerHTML = list.map(wh => {
+                const key = `${wh}_${month}`;
+                const data = auditData[key] || [0, 0, 0, 0];
+                const nonZero = data.filter(v => v > 0);
+                const avg = nonZero.length ? (nonZero.reduce((a,b)=>a+b,0) / nonZero.length).toFixed(1) : 0;
+                return `
+                    <tr class="border-b border-slate-700/50" data-wh="${wh}">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="0" value="${data[0]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="1" value="${data[1]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="2" value="${data[2]||''}"></td>
+                        <td class="p-3"><input type="number" ${isDisabled} class="w-20 bg-slate-900 border border-slate-700 rounded p-1 text-center text-xs audit-input" data-week="3" value="${data[3]||''}"></td>
+                        <td class="p-3 font-bold text-teal-300 avg-cell">${avg}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function saveAuditData() {
+            if(currentRole !== 'admin') return;
+            const monthEl = document.getElementById('audit-month');
+            if(!monthEl) return;
+            const month = monthEl.value;
+            document.querySelectorAll('#audit-table-body tr').forEach(tr => {
+                const wh = tr.getAttribute('data-wh');
+                const inputs = tr.querySelectorAll('.audit-input');
+                const vals = Array.from(inputs).map(inp => parseFloat(inp.value) || 0);
+                auditData[`${wh}_${month}`] = vals;
+            });
+            await saveToCloud();
+            renderAudit();
+            renderAuditChart();
+            alert('Аудит сохранен в облако!');
+        }
+
+        function renderAuditChart() {
+            if (currentRole === 'denied') return;
+            const canvas = document.getElementById('auditChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const monthEl = document.getElementById('audit-month');
+            const month = monthEl ? monthEl.value : '2026-10';
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const key = `${targetWh}_${month}`;
+            const data = auditData[key] || [0,0,0,0];
+
+            if(auditChartInstance) auditChartInstance.destroy();
+            auditChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Неделя 1', 'Неделя 2', 'Неделя 3', 'Неделя 4'],
+                    datasets: [{
+                        label: `Аудит ${targetWh} (${month})`,
+                        data: data,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderProd() {
+            if (currentRole === 'denied') return;
+            const tbody = document.getElementById('prod-table-body');
+            if(!tbody) return;
+            let list = warehouses;
+            if (currentRole === 'user' && currentDept) {
+                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                list = [baseWarehouse];
+            }
+            const currentMonthPrefix = new Date().toISOString().slice(0, 7);
+
+            tbody.innerHTML = list.map(wh => {
+                const history = prodData[wh] || {};
+                const monthValues = Object.entries(history)
+                    .filter(([date]) => date.startsWith(currentMonthPrefix))
+                    .map(([_, val]) => val);
+                
+                const avgMonth = monthValues.length ? (monthValues.reduce((a,b)=>a+b,0) / monthValues.length).toFixed(1) : 0;
+                const recentEntries = Object.entries(history).slice(-5).reverse().map(([d, v]) => `<span class="bg-slate-900 px-2 py-1 rounded text-xs mr-1">${d}: <b>${v}%</b></span>`).join('');
+
+                return `
+                    <tr class="border-b border-slate-700/50">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
+                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function addProdData() {
+            if(currentRole !== 'admin') return;
+            const dateInput = document.getElementById('prod-date');
+            const valInput = document.getElementById('prod-val');
+            if(!dateInput || !valInput) return;
+            const dateStr = dateInput.value;
+            const val = parseFloat(valInput.value);
+            let targetWh = prompt("Введите склад:", "PP7");
+            
+            if(!dateStr || isNaN(val) || !targetWh) { alert('Заполните все поля!'); return; }
+            targetWh = targetWh.trim().toUpperCase();
+            if(!prodData[targetWh]) prodData[targetWh] = {};
+            prodData[targetWh][dateStr] = val;
+
+            await saveToCloud();
+            renderProd();
+            renderProdChart();
+            alert('Продуктивность добавлена в облако!');
+        }
+
+        function renderProdChart() {
+            if (currentRole === 'denied') return;
+            const canvas = document.getElementById('prodChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const history = prodData[targetWh] || {};
+            const labels = Object.keys(history);
+            const data = Object.values(history);
+
+            if(prodChartInstance) prodChartInstance.destroy();
+            prodChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['Нет данных'],
+                    datasets: [{
+                        label: `Продуктивность ${targetWh} (%)`,
+                        data: data.length ? data : [0],
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+
+        function checkAlarms(now) {
+            if (currentRole !== 'user' || !currentDept || activeAlarmTask) return;
+            const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            
+            tasks.forEach(task => {
+                if (!task.completed && task.status !== 'cancelled' && task.time === currentHM && !acknowledgedTaskIds.has(task.id)) {
+                    const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+                    const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+                    if (depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL')) {
+                        triggerAlarm(task);
+                    }
+                }
+            });
+        }
+
+        function triggerAlarm(task) {
+            activeAlarmTask = task;
+            const taskTextEl = document.getElementById('alarm-task-text');
+            const taskDeptEl = document.getElementById('alarm-task-dept');
+            const overlayEl = document.getElementById('alarm-overlay');
+            
+            if(taskTextEl) taskTextEl.innerText = task.text;
+            const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+            if(taskDeptEl) taskDeptEl.innerText = `Кому: ${depts.map(d => d.replace('_', ' ')).join(', ')}`;
+            if(overlayEl) overlayEl.classList.remove('hidden');
+
+            alarmAudio.currentTime = 0;
+            alarmAudio.play().catch(err => console.log('Audio play error:', err));
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Внимание! Время задачи!', { body: task.text });
+            }
+        }
+
+        function acknowledgeAlarm() {
+            if (activeAlarmTask) {
+                acknowledgedTaskIds.add(activeAlarmTask.id);
+            }
+            activeAlarmTask = null;
+            const overlayEl = document.getElementById('alarm-overlay');
+            if (overlayEl) overlayEl.classList.add('hidden');
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+        }
+    </script>
+</body>
+</html>
