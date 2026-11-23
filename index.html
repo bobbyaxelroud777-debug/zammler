@@ -186,7 +186,9 @@
         const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
         const STORAGE_KEY_SESSION = 'zammler_session_v1';
 
-        // Уникальные ключи доступа: ключ -> роль ('admin' или код склада/должности)
+        const MIN_WORK_MS = 5 * 60 * 1000;   // 5 минут до разблокировки кнопки "Выполнить"
+        const MAX_WORK_MS = 30 * 60 * 1000;  // 30 минут на выполнение задачи
+
         const ACCESS_KEYS = {
             'adm_zml_9041': 'admin',
 
@@ -235,6 +237,7 @@
         let currentRole = 'denied';
         let currentDept = null;
         let activeAlarmTask = null;
+        let acknowledgedTaskIds = new Set();
         let auditChartInstance = null;
         let prodChartInstance = null;
 
@@ -425,6 +428,61 @@
                 clockEl.innerText = `Текущее время: ${now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
             }
             checkAlarms(now);
+            if (currentRole !== 'denied' && tasks.length > 0) {
+                renderTasks();
+            }
+        }
+
+        function formatDurationMMSS(ms) {
+            const totalSec = Math.max(0, Math.floor(ms / 1000));
+            const mins = Math.floor(totalSec / 60);
+            const secs = totalSec % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function renderTaskAction(task, nowMs) {
+            if (task.completed) {
+                return `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800 whitespace-nowrap">✓ Выполнено</span>`;
+            }
+
+            if (!task.startedAt) {
+                return `<button onclick="startTask('${task.id}')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-3.5 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap">Приступить к задаче</button>`;
+            }
+
+            const elapsed = nowMs - task.startedAt;
+            const remainingToUnlock = MIN_WORK_MS - elapsed;
+            const remainingToDeadline = MAX_WORK_MS - elapsed;
+
+            if (remainingToUnlock > 0) {
+                return `
+                    <div class="flex flex-col items-end space-y-1">
+                        <button disabled class="bg-slate-700 text-slate-400 text-xs px-3 py-2 rounded-lg font-medium cursor-not-allowed whitespace-nowrap">
+                            Выполнить (через ${formatDurationMMSS(remainingToUnlock)})
+                        </button>
+                        <span class="text-[11px] text-slate-400">Окно 30 мин: ост. ${formatDurationMMSS(remainingToDeadline)}</span>
+                    </div>
+                `;
+            }
+
+            if (remainingToDeadline > 0) {
+                return `
+                    <div class="flex flex-col items-end space-y-1">
+                        <button onclick="markCompleted('${task.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            Выполнить
+                        </button>
+                        <span class="text-[11px] text-teal-300">Ост. времени: ${formatDurationMMSS(remainingToDeadline)}</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="flex flex-col items-end space-y-1">
+                    <button onclick="markCompleted('${task.id}')" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3.5 py-2 rounded-lg font-medium transition-colors whitespace-nowrap">
+                        Выполнить (просрочено)
+                    </button>
+                    <span class="text-[11px] text-red-400 font-medium">30 мин истекли</span>
+                </div>
+            `;
         }
 
         function renderTasks() {
@@ -443,27 +501,44 @@
                 container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
                 return;
             }
+            const nowMs = Date.now();
             container.innerHTML = filtered.map(t => {
                 const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
                 const deptBadges = depts.map(d => `<span class="text-xs bg-teal-900/60 text-teal-300 border border-teal-800 px-2 py-0.5 rounded">${d.replace('_', ' ')}</span>`).join(' ');
+                const statusBadge = (!t.completed && t.startedAt)
+                    ? `<span class="text-xs bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded">В работе</span>`
+                    : '';
                 return `
-                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center ${t.completed ? 'opacity-50' : ''}">
+                    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex justify-between items-center gap-3 ${t.completed ? 'opacity-50' : ''}">
                         <div>
                             <div class="flex items-center space-x-2 mb-1 flex-wrap gap-1">
                                 <span class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">${t.time}</span>
                                 ${deptBadges}
+                                ${statusBadge}
                             </div>
                             <p class="font-medium text-slate-100 ${t.completed ? 'line-through' : ''}">${t.text}</p>
                         </div>
-                        <div>${t.completed ? `<span class="text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-950 border border-emerald-800">✓ Выполнено</span>` : `<button onclick="markCompleted('${t.id}')" class="bg-teal-600 hover:bg-teal-500 text-white text-xs px-3 py-2 rounded-lg font-medium">Выполнить</button>`}</div>
+                        <div>${renderTaskAction(t, nowMs)}</div>
                     </div>
                 `;
             }).join('');
         }
 
+        async function startTask(id) {
+            if (currentRole === 'denied') return;
+            const startedNow = Date.now();
+            tasks = tasks.map(t => (t.id === id && !t.startedAt) ? { ...t, startedAt: startedNow } : t);
+            renderTasks();
+            await saveToCloud();
+        }
+
         async function markCompleted(id) {
             if (currentRole === 'denied') return;
-            tasks = tasks.map(t => t.id === id ? { ...t, completed: true } : t);
+            const target = tasks.find(t => t.id === id);
+            if (!target || !target.startedAt) return;
+            if ((Date.now() - target.startedAt) < MIN_WORK_MS) return;
+
+            tasks = tasks.map(t => t.id === id ? { ...t, completed: true, completedAt: Date.now() } : t);
             await saveToCloud();
             renderTasks();
         }
@@ -480,7 +555,15 @@
                 return;
             }
 
-            tasks.unshift({ id: Date.now().toString(), text, dept: selectedDepts, time, completed: false });
+            tasks.unshift({
+                id: Date.now().toString(),
+                text,
+                dept: selectedDepts,
+                time,
+                completed: false,
+                startedAt: null,
+                completedAt: null
+            });
             await saveToCloud();
             renderTasks();
             closeModal();
@@ -660,7 +743,7 @@
             const currentHM = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
             
             tasks.forEach(task => {
-                if (!task.completed && task.time === currentHM) {
+                if (!task.completed && task.time === currentHM && !acknowledgedTaskIds.has(task.id)) {
                     const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
                     
                     if (currentRole === 'user' && currentDept) {
@@ -693,6 +776,9 @@
         }
 
         function acknowledgeAlarm() {
+            if (activeAlarmTask) {
+                acknowledgedTaskIds.add(activeAlarmTask.id);
+            }
             activeAlarmTask = null;
             const overlayEl = document.getElementById('alarm-overlay');
             if (overlayEl) overlayEl.classList.add('hidden');
