@@ -189,12 +189,11 @@
         const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
         const ONESIGNAL_APP_ID = '3f424db7-456f-4031-bd72-29a44e5101a2';
         const STORAGE_KEY_SESSION = 'zammler_session_v1';
-        const AUTO_REFRESH_MS = 15000; // обновление задач каждые 15 секунд
+        const AUTO_REFRESH_MS = 15000;
 
         const MIN_WORK_MS = 5 * 60 * 1000;
         const MAX_WORK_MS = 30 * 60 * 1000;
 
-        // Уникальные ссылки по ключу ?key=... для админа, складов, РО и СП
         const ACCESS_KEYS = {
             'adm_zml_9041': 'admin',
 
@@ -243,7 +242,7 @@
         let currentRole = 'denied';
         let currentDept = null;
         let activeAlarmTask = null;
-        let acknowledgedTaskIds = new Set();
+        let acknowledgedAlarmKeys = new Set();
         let auditChartInstance = null;
         let prodChartInstance = null;
         let oneSignalInitialized = false;
@@ -257,11 +256,21 @@
             alarmAudio = null;
         }
 
-        document.addEventListener('click', () => {
-            if (alarmAudio && alarmAudio.paused) {
-                alarmAudio.play().then(() => {
+        function stopAlarmSound() {
+            if (alarmAudio) {
+                try {
                     alarmAudio.pause();
                     alarmAudio.currentTime = 0;
+                    alarmAudio.loop = false;
+                } catch (_) {}
+            }
+        }
+
+        document.addEventListener('click', () => {
+            if (alarmAudio && !activeAlarmTask && alarmAudio.paused) {
+                alarmAudio.loop = false;
+                alarmAudio.play().then(() => {
+                    stopAlarmSound();
                 }).catch(() => {});
             }
         }, { once: true });
@@ -274,15 +283,30 @@
         }
 
         function safeStorageGet(key) {
-            try { return localStorage.getItem(key); } catch (_) { return null; }
+            try {
+                const ls = localStorage.getItem(key);
+                if (ls) return ls;
+            } catch (_) {}
+            try {
+                const match = document.cookie.match(new RegExp('(?:^|; )' + key + '=([^;]*)'));
+                return match ? decodeURIComponent(match[1]) : null;
+            } catch (_) {
+                return null;
+            }
         }
 
         function safeStorageSet(key, val) {
             try { localStorage.setItem(key, val); } catch (_) {}
+            try {
+                document.cookie = `${key}=${encodeURIComponent(val)}; path=/; max-age=31536000; SameSite=Lax`;
+            } catch (_) {}
         }
 
         function safeStorageRemove(key) {
             try { localStorage.removeItem(key); } catch (_) {}
+            try {
+                document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax`;
+            } catch (_) {}
         }
 
         function requestNotificationPermission() {
@@ -413,6 +437,7 @@
         }
 
         function initRole() {
+            stopAlarmSound();
             setInterval(updateClock, 1000);
             updateClock();
 
@@ -445,11 +470,14 @@
                 currentRole = 'user';
                 currentDept = resolvedTarget;
                 const formattedName = currentDept.replace('_', ' ');
+                const baseWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
                 if (adminPanel) adminPanel.classList.add('hidden');
                 if (auditControls) auditControls.classList.add('hidden');
                 if (prodControls) prodControls.classList.add('hidden');
                 if (roleBadge) roleBadge.innerHTML = `<span>Точка: <b>${formattedName}</b></span>`;
-                if (viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
+                if (viewTitle) viewTitle.innerText = currentDept.includes('_')
+                    ? `Задачи склада ${baseWh} (${formattedName})`
+                    : `Задачи для: ${formattedName}`;
             }
 
             renderCheckboxes();
@@ -462,6 +490,8 @@
                 if (document.visibilityState === 'visible' && currentRole !== 'denied') {
                     fetchFromCloud();
                     updateClock();
+                } else if (document.visibilityState === 'hidden') {
+                    stopAlarmSound();
                 }
             });
         }
@@ -686,7 +716,7 @@
             `;
         }
 
-        // РО и СП видят задачи только своего склада (или адресованные конкретно им)
+        // РО и СП видят задачи своего склада (PPxx) и адресованные конкретно их роли (RO_PPxx / SP_PPxx)
         function isTaskForCurrentUser(task) {
             if (currentRole !== 'user' || !currentDept) return true;
             const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
@@ -932,14 +962,15 @@
             const currentHM = formatHM_UTC5(now);
             
             tasks.forEach(task => {
-                if (!task.completed && task.status !== 'cancelled' && task.time === currentHM && !acknowledgedTaskIds.has(task.id) && isTaskForCurrentUser(task)) {
-                    triggerAlarm(task);
+                const ackKey = `${task.id}_${currentHM}`;
+                if (!task.completed && task.status !== 'cancelled' && task.time === currentHM && !acknowledgedAlarmKeys.has(ackKey) && isTaskForCurrentUser(task)) {
+                    triggerAlarm(task, currentHM);
                 }
             });
         }
 
-        function triggerAlarm(task) {
-            activeAlarmTask = task;
+        function triggerAlarm(task, hm) {
+            activeAlarmTask = { ...task, _alarmHM: hm };
             const taskTextEl = document.getElementById('alarm-task-text');
             const taskDeptEl = document.getElementById('alarm-task-dept');
             const overlayEl = document.getElementById('alarm-overlay');
@@ -950,6 +981,7 @@
             if (overlayEl) overlayEl.classList.remove('hidden');
 
             if (alarmAudio) {
+                alarmAudio.loop = true;
                 alarmAudio.currentTime = 0;
                 alarmAudio.play().catch(err => console.log('Audio play error:', err));
             }
@@ -961,15 +993,13 @@
 
         function acknowledgeAlarm() {
             if (activeAlarmTask) {
-                acknowledgedTaskIds.add(activeAlarmTask.id);
+                const hm = activeAlarmTask._alarmHM || activeAlarmTask.time || '';
+                acknowledgedAlarmKeys.add(`${activeAlarmTask.id}_${hm}`);
             }
             activeAlarmTask = null;
             const overlayEl = document.getElementById('alarm-overlay');
             if (overlayEl) overlayEl.classList.add('hidden');
-            if (alarmAudio) {
-                alarmAudio.pause();
-                alarmAudio.currentTime = 0;
-            }
+            stopAlarmSound();
         }
 
         if (document.readyState === 'loading') {
