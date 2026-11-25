@@ -19,7 +19,7 @@
         .alarm-active { animation: pulse-red 1s infinite; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col" onload="initRole()">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
 
     <!-- Header -->
     <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-40">
@@ -62,7 +62,7 @@
                 <h2 class="text-lg font-bold text-teal-400">Панель администратора</h2>
                 <button onclick="openModal()" class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">+ Создать задачу</button>
             </div>
-            <div class="flex justify-between items-end">
+            <div class="flex justify-between items-end gap-2 flex-wrap">
                 <h2 id="view-title" class="text-xl font-bold text-slate-200">Задачи</h2>
                 <span id="sync-status" class="text-xs text-slate-400"></span>
             </div>
@@ -186,14 +186,15 @@
 
     <script>
         const BIN_ID = '6ad86195ac6210605a44aedd';
-        const MASTER_KEY = '\$2a\$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
+        const MASTER_KEY = '$2a$10$nKqqdqhFVXrfDqCKY9cPTu.KRPk6gVu3c6X0yp0qtZYuapqTZlUSe';
         const ONESIGNAL_APP_ID = '3f424db7-456f-4031-bd72-29a44e5101a2';
         const STORAGE_KEY_SESSION = 'zammler_session_v1';
-        const AUTO_REFRESH_MS = 30000; // автообновление списка каждые 30 секунд
+        const AUTO_REFRESH_MS = 15000; // обновление задач каждые 15 секунд
 
         const MIN_WORK_MS = 5 * 60 * 1000;
         const MAX_WORK_MS = 30 * 60 * 1000;
 
+        // Уникальные ссылки по ключу ?key=... для админа, складов, РО и СП
         const ACCESS_KEYS = {
             'adm_zml_9041': 'admin',
 
@@ -247,12 +248,17 @@
         let prodChartInstance = null;
         let oneSignalInitialized = false;
         let pollTimerId = null;
+        let alarmAudio = null;
 
-        let alarmAudio = new Audio('alarm.mp3');
-        alarmAudio.loop = true;
+        try {
+            alarmAudio = new Audio('alarm.mp3');
+            alarmAudio.loop = true;
+        } catch (_) {
+            alarmAudio = null;
+        }
 
         document.addEventListener('click', () => {
-            if (alarmAudio.paused) {
+            if (alarmAudio && alarmAudio.paused) {
                 alarmAudio.play().then(() => {
                     alarmAudio.pause();
                     alarmAudio.currentTime = 0;
@@ -267,16 +273,26 @@
             return `${hh}:${mm}`;
         }
 
+        function safeStorageGet(key) {
+            try { return localStorage.getItem(key); } catch (_) { return null; }
+        }
+
+        function safeStorageSet(key, val) {
+            try { localStorage.setItem(key, val); } catch (_) {}
+        }
+
+        function safeStorageRemove(key) {
+            try { localStorage.removeItem(key); } catch (_) {}
+        }
+
         function requestNotificationPermission() {
-            if ('Notification' in window) {
-                Notification.requestPermission().then(permission => {
-                    console.log('Статус уведомлений:', permission);
-                });
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().catch(() => {});
             }
         }
 
         function initOneSignalForRole(role, dept) {
-            if (!ONESIGNAL_APP_ID || ONESIGNAL_APP_ID === 'YOUR_ONESIGNAL_APP_ID') return;
+            if (!ONESIGNAL_APP_ID) return;
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             OneSignalDeferred.push(async function(OneSignal) {
                 try {
@@ -347,7 +363,7 @@
                     body: JSON.stringify({ tasks, audit: auditData, prod: prodData })
                 });
                 if (!res.ok) {
-                    alert('Не удалось сохранить изменения в облако. Проверьте интернет.');
+                    alert('Не удалось сохранить изменения в облако.');
                 }
             } catch (e) {
                 console.error('Cloud save error', e);
@@ -371,15 +387,15 @@
             if (keyParam !== null) {
                 const cleanKey = keyParam.trim();
                 if (ACCESS_KEYS[cleanKey]) {
-                    localStorage.setItem(STORAGE_KEY_SESSION, cleanKey);
+                    safeStorageSet(STORAGE_KEY_SESSION, cleanKey);
                     return ACCESS_KEYS[cleanKey];
                 } else {
-                    localStorage.removeItem(STORAGE_KEY_SESSION);
+                    safeStorageRemove(STORAGE_KEY_SESSION);
                     return null;
                 }
             }
 
-            const savedKey = localStorage.getItem(STORAGE_KEY_SESSION);
+            const savedKey = safeStorageGet(STORAGE_KEY_SESSION);
             if (savedKey && ACCESS_KEYS[savedKey]) {
                 return ACCESS_KEYS[savedKey];
             }
@@ -432,7 +448,7 @@
                 if (adminPanel) adminPanel.classList.add('hidden');
                 if (auditControls) auditControls.classList.add('hidden');
                 if (prodControls) prodControls.classList.add('hidden');
-                if (roleBadge) roleBadge.innerHTML = `<span>Склад: <b>${formattedName}</b></span>`;
+                if (roleBadge) roleBadge.innerHTML = `<span>Точка: <b>${formattedName}</b></span>`;
                 if (viewTitle) viewTitle.innerText = `Задачи для: ${formattedName}`;
             }
 
@@ -670,18 +686,22 @@
             `;
         }
 
+        // РО и СП видят задачи только своего склада (или адресованные конкретно им)
+        function isTaskForCurrentUser(task) {
+            if (currentRole !== 'user' || !currentDept) return true;
+            const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+            const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            return depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL');
+        }
+
         function renderTasks() {
             if (currentRole === 'denied') return;
             const container = document.getElementById('tasks-container');
             if (!container) return;
-            let filtered = tasks;
-            if (currentRole === 'user' && currentDept) {
-                const baseWarehouse = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
-                filtered = tasks.filter(t => {
-                    const depts = Array.isArray(t.dept) ? t.dept : [t.dept];
-                    return depts.includes(currentDept) || depts.includes(baseWarehouse) || depts.includes('ALL');
-                });
-            }
+            const filtered = currentRole === 'user'
+                ? tasks.filter(isTaskForCurrentUser)
+                : tasks;
+
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="text-center py-10 text-slate-500 bg-slate-800/50 rounded-xl">Активных задач нет</div>`;
                 return;
@@ -840,4 +860,123 @@
             tbody.innerHTML = list.map(wh => {
                 const history = prodData[wh] || {};
                 const monthValues = Object.entries(history)
-                    .filter(([date]) => date.starts
+                    .filter(([date]) => date.startsWith(currentMonthPrefix))
+                    .map(([_, val]) => val);
+                
+                const avgMonth = monthValues.length ? (monthValues.reduce((a, b) => a + b, 0) / monthValues.length).toFixed(1) : 0;
+                const recentEntries = Object.entries(history).slice(-5).reverse().map(([d, v]) => `<span class="bg-slate-900 px-2 py-1 rounded text-xs mr-1">${d}: <b>${v}%</b></span>`).join('');
+
+                return `
+                    <tr class="border-b border-slate-700/50">
+                        <td class="p-3 font-bold text-teal-400">${wh}</td>
+                        <td class="p-3 font-bold text-teal-300 text-base">${avgMonth}%</td>
+                        <td class="p-3 text-slate-400">${recentEntries || 'Нет данных'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function addProdData() {
+            if (currentRole !== 'admin') return;
+            const dateInput = document.getElementById('prod-date');
+            const valInput = document.getElementById('prod-val');
+            if (!dateInput || !valInput) return;
+            const dateStr = dateInput.value;
+            const val = parseFloat(valInput.value);
+            let targetWh = prompt("Введите склад:", "PP7");
+            
+            if (!dateStr || isNaN(val) || !targetWh) { alert('Заполните все поля!'); return; }
+            targetWh = targetWh.trim().toUpperCase();
+            if (!prodData[targetWh]) prodData[targetWh] = {};
+            prodData[targetWh][dateStr] = val;
+
+            await saveToCloud();
+            renderProd();
+            renderProdChart();
+            alert('Продуктивность добавлена в облако!');
+        }
+
+        function renderProdChart() {
+            if (currentRole === 'denied') return;
+            const canvas = document.getElementById('prodChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let targetWh = warehouses[0];
+            if (currentRole === 'user' && currentDept) {
+                targetWh = currentDept.includes('_') ? currentDept.split('_')[1] : currentDept;
+            }
+            const history = prodData[targetWh] || {};
+            const labels = Object.keys(history);
+            const data = Object.values(history);
+
+            if (prodChartInstance) prodChartInstance.destroy();
+            prodChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.length ? labels : ['Нет данных'],
+                    datasets: [{
+                        label: `Продуктивность ${targetWh} (%)`,
+                        data: data.length ? data : [0],
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+        }
+
+        function checkAlarms(now) {
+            if (currentRole !== 'user' || !currentDept || activeAlarmTask) return;
+            const currentHM = formatHM_UTC5(now);
+            
+            tasks.forEach(task => {
+                if (!task.completed && task.status !== 'cancelled' && task.time === currentHM && !acknowledgedTaskIds.has(task.id) && isTaskForCurrentUser(task)) {
+                    triggerAlarm(task);
+                }
+            });
+        }
+
+        function triggerAlarm(task) {
+            activeAlarmTask = task;
+            const taskTextEl = document.getElementById('alarm-task-text');
+            const taskDeptEl = document.getElementById('alarm-task-dept');
+            const overlayEl = document.getElementById('alarm-overlay');
+            
+            if (taskTextEl) taskTextEl.innerText = task.text;
+            const depts = Array.isArray(task.dept) ? task.dept : [task.dept];
+            if (taskDeptEl) taskDeptEl.innerText = `Кому: ${depts.map(d => String(d || '').replace('_', ' ')).join(', ')}`;
+            if (overlayEl) overlayEl.classList.remove('hidden');
+
+            if (alarmAudio) {
+                alarmAudio.currentTime = 0;
+                alarmAudio.play().catch(err => console.log('Audio play error:', err));
+            }
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Внимание! Время задачи!', { body: task.text });
+            }
+        }
+
+        function acknowledgeAlarm() {
+            if (activeAlarmTask) {
+                acknowledgedTaskIds.add(activeAlarmTask.id);
+            }
+            activeAlarmTask = null;
+            const overlayEl = document.getElementById('alarm-overlay');
+            if (overlayEl) overlayEl.classList.add('hidden');
+            if (alarmAudio) {
+                alarmAudio.pause();
+                alarmAudio.currentTime = 0;
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initRole);
+        } else {
+            initRole();
+        }
+    </script>
+</body>
+</html>
