@@ -23,10 +23,16 @@ jobs:
           const isManual = process.env.EVENT_NAME === "workflow_dispatch";
 
           const TZ_OFFSET_MIN = 5 * 60;
-          const now = new Date(Date.now() + TZ_OFFSET_MIN * 60 * 1000);
-          const hh = String(now.getUTCHours()).padStart(2, "0");
-          const mm = String(now.getUTCMinutes()).padStart(2, "0");
-          const currentHM = `${hh}:${mm}`;
+          const nowUtc5 = new Date(Date.now() + TZ_OFFSET_MIN * 60 * 1000);
+          const nowMinutes = nowUtc5.getUTCHours() * 60 + nowUtc5.getUTCMinutes();
+          const currentHM = `${String(nowUtc5.getUTCHours()).padStart(2, "0")}:${String(nowUtc5.getUTCMinutes()).padStart(2, "0")}`;
+
+          function parseHMToMinutes(hm) {
+            if (!hm || typeof hm !== "string" || !hm.includes(":")) return null;
+            const [h, m] = hm.split(":").map(Number);
+            if (Number.isNaN(h) || Number.isNaN(m)) return null;
+            return h * 60 + m;
+          }
 
           const DEPT_LINKS = {
             PP7: "https://bobbyaxelroud777-debug.github.io/zammler/?key=pp7_4821",
@@ -46,6 +52,11 @@ jobs:
             console.log("Current HM (UTC+5):", currentHM, "| Manual run:", isManual);
             console.log("APP_ID present:", Boolean(APP_ID), "| REST_KEY present:", Boolean(REST_KEY));
 
+            if (!APP_ID || !REST_KEY) {
+              console.error("Missing ONESIGNAL_APP_ID or ONESIGNAL_REST_API_KEY in GitHub Secrets");
+              process.exit(1);
+            }
+
             const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
               headers: { "X-Master-Key": MASTER_KEY }
             });
@@ -56,7 +67,12 @@ jobs:
             const activeTasks = tasks.filter(t => !t.completed && t.status !== "cancelled");
             const dueTasks = isManual
               ? activeTasks.slice(0, 1)
-              : activeTasks.filter(t => t.time === currentHM);
+              : activeTasks.filter(t => {
+                  const taskMin = parseHMToMinutes(t.time);
+                  if (taskMin === null) return false;
+                  const diff = nowMinutes - taskMin;
+                  return diff >= 0 && diff <= 2;
+                });
 
             console.log("Tasks to notify:", dueTasks.length);
 
@@ -72,11 +88,10 @@ jobs:
               depts.filter(Boolean).forEach((d, idx) => {
                 if (idx > 0) filters.push({ operator: "OR" });
                 const strD = String(d);
-                const wh = strD.includes("_") ? strD.split("_")[1] : strD;
                 if (strD.startsWith("RO_") || strD.startsWith("SP_")) {
                   filters.push({ field: "tag", key: "dept", relation: "=", value: strD });
                 } else {
-                  filters.push({ field: "tag", key: "warehouse", relation: "=", value: wh });
+                  filters.push({ field: "tag", key: "warehouse", relation: "=", value: strD });
                 }
               });
 
@@ -88,14 +103,16 @@ jobs:
                   en: task.title || task.text || task.name || "New task",
                   ru: task.title || task.text || task.name || "Новая задача"
                 },
-                url: targetUrl
+                url: targetUrl,
+                priority: 10,
+                ios_sound: "default"
               };
 
               const pushRes = await fetch("https://api.onesignal.com/notifications", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                 "Authorization": `Key ${REST_KEY}`
+                  "Authorization": `Key ${REST_KEY}`
                 },
                 body: JSON.stringify(payload)
               });
